@@ -35,6 +35,12 @@ testNb = Notebook "hallo.ipynb"
     ]
     empty
 
+printCells :: Notebook -> String
+printCells nb = show ( cells nb )
+
+
 main :: IO ()
 main = do
     putStr (show testNb)
+    putStr "\n"
+    putStr $ printCells testNb
