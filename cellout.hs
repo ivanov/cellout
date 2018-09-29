@@ -35,11 +35,14 @@ testNb = Notebook "hallo.ipynb"
     ]
     empty
 
+-- Man, so how do I unwrap the union data type into its constituent parts?
 show' :: Cell -> String
-show' c = "hi"
+show' cell =  case cell of
+            MarkdownCell c -> "### " ++ (unlines $ source c)
+            CodeCell c -> unlines $ source c
 
 printCells :: Notebook -> String
-printCells nb = unlines (fmap show' $ cells nb )
+printCells nb = unwords (fmap show' $ cells nb )
 
 
 main :: IO ()
