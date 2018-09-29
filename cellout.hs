@@ -35,7 +35,6 @@ testNb = Notebook "hallo.ipynb"
     ]
     empty
 
--- Man, so how do I unwrap the union data type into its constituent parts?
 show' :: Cell -> String
 show' cell =  case cell of
             --MarkdownCell c -> unlines $ "### " ++ (source c)
@@ -46,9 +45,21 @@ printCells :: Notebook -> String
 printCells nb = unwords (fmap show' $ cells nb )
 
 
--- let's do some quick 
+keep :: Bool -> Bool -> Cell -> Bool
+keep md code x =  case x of
+    MarkdownCell c -> md
+    CodeCell c -> code
+
+-- let's do some quick filtering on cell type...
+onlyMarkdown :: [Cell] -> [Cell]
+onlyMarkdown = Data.List.filter $ keep True False
+
+onlyCode :: [Cell] -> [Cell]
+onlyCode = Data.List.filter $ keep False True
+
 main :: IO ()
 main = do
     putStr (show testNb)
     putStr "\n"
     putStr $ printCells testNb
+    putStr "\n"
