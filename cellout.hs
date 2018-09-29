@@ -35,8 +35,11 @@ testNb = Notebook "hallo.ipynb"
     ]
     empty
 
+show' :: Cell -> String
+show' c = "hi"
+
 printCells :: Notebook -> String
-printCells nb = show ( cells nb )
+printCells nb = unlines (fmap show' $ cells nb )
 
 
 main :: IO ()
