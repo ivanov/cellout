@@ -20,7 +20,7 @@ data CommonCellContent =
 data Cell
     = MarkdownCell CommonCellContent
     | CodeCell  CommonCellContent
-    -- | RawCell CellContent
+    | RawCell CommonCellContent
     deriving Show
 
 -- let's think about this a bit, I'll be able to case-switch on cell type if I
@@ -47,19 +47,19 @@ keep md code x =  case x of
     MarkdownCell c -> md
     CodeCell c -> code
 
--- let's do some quick filtering on cell type...
+---- let's do some quick filtering on cell type...
 onlyMarkdown :: [Cell] -> [Cell]
 onlyMarkdown = Data.List.filter $ keep True False
 
 onlyCode :: [Cell] -> [Cell]
 onlyCode = Data.List.filter $ keep False True
 
-{- By keeping content's first argument as [Cells] -> [Cells], we allow both the
- - exclusion of cells, and the addition of new ones.
- -
- - TODO: This, then also suggests we should return a Notebook, instead of a string.
- -
- -}
+-- By keeping content's first argument as [Cells] -> [Cells], we allow both the
+-- exclusion of cells, and the addition of new ones.
+--
+-- TODO: This, then also suggests we should return a Notebook, instead of a string.
+--
+--}
 content :: ([Cell] -> [Cell]) -> Notebook  -> String
 content filter
     = cells
