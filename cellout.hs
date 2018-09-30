@@ -2,7 +2,7 @@
 import Text.ParserCombinators.ReadP
 import Data.List
 import Data.Set (Set, empty)
-import Control.Arrow
+import Control.Arrow -- for >>>
 
 data Notebook =
     Notebook
@@ -32,36 +32,55 @@ testNb :: Notebook
 testNb = Notebook "hallo.ipynb"
     [ MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] empty
     , CodeCell $ CommonCellContent ["print ('hello')"] empty
+    , CodeCell $ CommonCellContent [] empty
+    , CodeCell $ CommonCellContent [""] empty
+    , CodeCell $ CommonCellContent [""] empty
+    , CodeCell $ CommonCellContent [""] empty
+    , CodeCell $ CommonCellContent [""] empty
     , CodeCell $ CommonCellContent ["print ('goodbye')\n"] empty
     ]
     empty -- should I be using mempty here?
 
 show' :: Cell -> String
 show' cell =  case cell of
-    MarkdownCell c -> foldMap (\x -> "### " ++ x ++ "\n") (source c)
+    MarkdownCell c -> foldMap markdown_indicator (source c)
     CodeCell c -> unlines $ source c
 
+markdown_indicator :: String -> String
+markdown_indicator x = "### " ++ x ++ "\n"
 
-keep :: Bool -> Bool -> Cell -> Bool
-keep md code x =  case x of
-    MarkdownCell c -> md
-    CodeCell c -> code
+isMarkdown ::  Cell -> Bool
+isMarkdown (MarkdownCell _) = True
+isMarkdown _ = False
 
-keepMarkdown = keep True False
-keepCode = keep True False
+isCode ::  Cell -> Bool
+isCode (CodeCell _) = True
+isCode _ = False
+
+-- TODO not 100% sure what empty cells actually show up as.
+isEmpty ::  Cell -> Bool
+isEmpty (MarkdownCell c) = source c == [""]
+isEmpty (CodeCell c) = source c == [""]
 
 ---- let's do some quick filtering on cell type...
 onlyMarkdown :: [Cell] -> [Cell]
-onlyMarkdown = Data.List.filter keepMarkdown
+onlyMarkdown = filter isMarkdown
 
 onlyCode :: [Cell] -> [Cell]
-onlyCode = filter keepCode
+onlyCode = filter isCode
 
-onlyCode2 :: [Cell] -> [Cell]
-onlyCode2 = filter keepCode
+clearEmpty :: [Cell] -> [Cell]
+clearEmpty = filter (not . isEmpty)
 
+mdBeforeEachCodeDumb :: [Cell] -> [Cell]
+mdBeforeEachCodeDumb cells = concatMap
+    (\x ->
+    [ MarkdownCell $  CommonCellContent [""] empty
+    , x])
+    cells
 -- By keeping content's first argument as [Cells] -> [Cells], we allow both the
--- exclusion of cells, and the addition of new ones.
+-- exclusion of cells, and the addition of new ones. Also, we can examin
+-- adjacent cells to make decisions about what to add or remove.
 --
 -- TODO: This, then also suggests we should return a Notebook, instead of a string.
 --
@@ -85,15 +104,27 @@ onlyCodeContent :: Notebook -> String
 onlyCodeContent
     = content onlyCode
 
+onlyNonEmpty :: Notebook -> String
+onlyNonEmpty
+    = content clearEmpty
+
+insertMd :: Notebook -> String
+insertMd
+    = content mdBeforeEachCodeDumb
+
 main :: IO ()
 main = do
     putStr (show testNb)
-    putStr "\n"
-    putStr $ printCells testNb
-    putStr "\n"
-    putStr $ onlyMarkdownContent testNb
-    putStr "CODECODECODECODECODE \n"
-    putStr $ onlyCodeContent testNb
+    putStrLn ""
+    putStrLn $ printCells testNb
+    putStrLn ""
+    putStrLn $ onlyMarkdownContent testNb
+    putStrLn "CODECODECODECODECODE"
+    putStrLn $ onlyCodeContent testNb
+    putStrLn "EMPTIES removed"
+    putStrLn $ onlyNonEmpty testNb
+    putStrLn "Extra MARKDOWN "
+    putStrLn $ insertMd testNb
 
 
 
@@ -128,3 +159,15 @@ main = do
 --  58 | onlyCode2 = keep False True >>> filter
 --     |                                 ^^^^^^
 
+
+-- keep :: Bool -> Bool -> Cell -> Bool
+-- keep md code x = case x of
+--     MarkdownCell c -> md
+--     CodeCell c -> code
+--
+-- keep :: Bool -> Bool -> Cell -> Bool
+-- keep md code (MarkdownCell _)  = md
+-- keep md code (CodeCell _)  = code
+--
+-- isMarkdown ::  Cell -> Bool
+-- isMarkdown = keep True False
