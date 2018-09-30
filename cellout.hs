@@ -72,12 +72,15 @@ onlyCode = filter isCode
 clearEmpty :: [Cell] -> [Cell]
 clearEmpty = filter (not . isEmpty)
 
+
+mdBeforeCode :: Cell -> [Cell]
+mdBeforeCode (CodeCell x) =
+    [ MarkdownCell $  CommonCellContent [""] empty, (CodeCell x)]
+mdBeforeCode x = [x]
+
 mdBeforeEachCodeDumb :: [Cell] -> [Cell]
-mdBeforeEachCodeDumb cells = concatMap
-    (\x ->
-    [ MarkdownCell $  CommonCellContent [""] empty
-    , x])
-    cells
+mdBeforeEachCodeDumb cells = concatMap mdBeforeCode cells
+
 -- By keeping content's first argument as [Cells] -> [Cells], we allow both the
 -- exclusion of cells, and the addition of new ones. Also, we can examin
 -- adjacent cells to make decisions about what to add or remove.
