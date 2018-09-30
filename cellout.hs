@@ -2,6 +2,7 @@
 import Text.ParserCombinators.ReadP
 import Data.List
 import Data.Set
+import Control.Arrow
 
 data Notebook =
     Notebook
@@ -42,7 +43,7 @@ show' cell =  case cell of
             CodeCell c -> unlines $ source c
 
 printCells :: Notebook -> String
-printCells nb = unwords (fmap show' $ cells nb )
+printCells nb = concat (fmap show' $ cells nb )
 
 
 keep :: Bool -> Bool -> Cell -> Bool
@@ -57,9 +58,28 @@ onlyMarkdown = Data.List.filter $ keep True False
 onlyCode :: [Cell] -> [Cell]
 onlyCode = Data.List.filter $ keep False True
 
+-- extract contents
+--
+onlyMarkdownContent :: Notebook -> String
+-- onlyMarkdownContent nb = unwords . fmap show' $ onlyMarkdown $ cells (nb)
+onlyMarkdownContent
+    = cells
+    >>> onlyMarkdown
+    >>> fmap show'
+    >>> concat
+
+onlyCodeContent
+    = cells
+    >>> onlyCode
+    >>> fmap show'
+    >>> concat
+
 main :: IO ()
 main = do
     putStr (show testNb)
     putStr "\n"
     putStr $ printCells testNb
     putStr "\n"
+    putStr $ onlyMarkdownContent testNb
+    putStr "CODECODECODECODECODE \n"
+    putStr $ onlyCodeContent testNb
