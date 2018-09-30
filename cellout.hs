@@ -41,12 +41,6 @@ show' cell =  case cell of
     MarkdownCell c -> foldMap (\x -> "### " ++ x ++ "\n") (source c)
     CodeCell c -> unlines $ source c
 
-printCells :: Notebook -> String
-printCells
-    = cells
-    >>> fmap show'
-    >>> concat
-
 
 keep :: Bool -> Bool -> Cell -> Bool
 keep md code x =  case x of
@@ -60,18 +54,30 @@ onlyMarkdown = Data.List.filter $ keep True False
 onlyCode :: [Cell] -> [Cell]
 onlyCode = Data.List.filter $ keep False True
 
-onlyMarkdownContent :: Notebook -> String
-onlyMarkdownContent
+{- By keeping content's first argument as [Cells] -> [Cells], we allow both the
+ - exclusion of cells, and the addition of new ones.
+ -
+ - TODO: This, then also suggests we should return a Notebook, instead of a string.
+ -
+ -}
+content :: ([Cell] -> [Cell]) -> Notebook  -> String
+content filter
     = cells
-    >>> onlyMarkdown
+    >>> filter
     >>> fmap show'
     >>> concat
 
+printCells :: Notebook -> String
+printCells
+    = content id
+
+onlyMarkdownContent :: Notebook -> String
+onlyMarkdownContent
+    = content onlyMarkdown
+
+onlyCodeContent :: Notebook -> String
 onlyCodeContent
-    = cells
-    >>> onlyCode
-    >>> fmap show'
-    >>> concat
+    = content onlyCode
 
 main :: IO ()
 main = do
@@ -94,4 +100,10 @@ main = do
 --
 -- onlyMarkdownContent :: Notebook -> String
 -- onlyMarkdownContent nb = unwords . fmap show' $ onlyMarkdown $ cells (nb)
+
+-- printCells :: Notebook -> String
+-- printCells
+--     = cells
+--     >>> fmap show'
+--     >>> concat
 
