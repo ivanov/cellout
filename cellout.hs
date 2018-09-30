@@ -32,18 +32,20 @@ testNb :: Notebook
 testNb = Notebook "hallo.ipynb"
     [ MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] empty
     , CodeCell $ CommonCellContent ["print ('hello')"] empty
-    , CodeCell $ CommonCellContent ["print ('goodbye')"] empty
+    , CodeCell $ CommonCellContent ["print ('goodbye')\n"] empty
     ]
     empty
 
 show' :: Cell -> String
 show' cell =  case cell of
-            --MarkdownCell c -> unlines $ "### " ++ (source c)
-            MarkdownCell c -> foldMap (\x -> "### " ++ x ++ "\n") (source c)
-            CodeCell c -> unlines $ source c
+    MarkdownCell c -> foldMap (\x -> "### " ++ x ++ "\n") (source c)
+    CodeCell c -> unlines $ source c
 
 printCells :: Notebook -> String
-printCells nb = concat (fmap show' $ cells nb )
+printCells
+    = cells
+    >>> fmap show'
+    >>> concat
 
 
 keep :: Bool -> Bool -> Cell -> Bool
@@ -58,10 +60,7 @@ onlyMarkdown = Data.List.filter $ keep True False
 onlyCode :: [Cell] -> [Cell]
 onlyCode = Data.List.filter $ keep False True
 
--- extract contents
---
 onlyMarkdownContent :: Notebook -> String
--- onlyMarkdownContent nb = unwords . fmap show' $ onlyMarkdown $ cells (nb)
 onlyMarkdownContent
     = cells
     >>> onlyMarkdown
@@ -83,3 +82,16 @@ main = do
     putStr $ onlyMarkdownContent testNb
     putStr "CODECODECODECODECODE \n"
     putStr $ onlyCodeContent testNb
+
+
+
+
+-- ALTERNATIVES
+--
+---printCells :: Notebook -> String
+-- printCells nb
+--     = concat (fmap show' $ cells nb )
+--
+-- onlyMarkdownContent :: Notebook -> String
+-- onlyMarkdownContent nb = unwords . fmap show' $ onlyMarkdown $ cells (nb)
+
