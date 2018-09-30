@@ -1,7 +1,7 @@
 
 import Text.ParserCombinators.ReadP
 import Data.List
-import Data.Set
+import Data.Set (Set, empty)
 import Control.Arrow
 
 data Notebook =
@@ -34,7 +34,7 @@ testNb = Notebook "hallo.ipynb"
     , CodeCell $ CommonCellContent ["print ('hello')"] empty
     , CodeCell $ CommonCellContent ["print ('goodbye')\n"] empty
     ]
-    empty
+    empty -- should I be using mempty here?
 
 show' :: Cell -> String
 show' cell =  case cell of
@@ -47,12 +47,18 @@ keep md code x =  case x of
     MarkdownCell c -> md
     CodeCell c -> code
 
+keepMarkdown = keep True False
+keepCode = keep True False
+
 ---- let's do some quick filtering on cell type...
 onlyMarkdown :: [Cell] -> [Cell]
-onlyMarkdown = Data.List.filter $ keep True False
+onlyMarkdown = Data.List.filter keepMarkdown
 
 onlyCode :: [Cell] -> [Cell]
-onlyCode = Data.List.filter $ keep False True
+onlyCode = filter keepCode
+
+onlyCode2 :: [Cell] -> [Cell]
+onlyCode2 = filter keepCode
 
 -- By keeping content's first argument as [Cells] -> [Cells], we allow both the
 -- exclusion of cells, and the addition of new ones.
@@ -106,4 +112,19 @@ main = do
 --     = cells
 --     >>> fmap show'
 --     >>> concat
+
+---- ARGH! why doesn't this work?
+-- onlyCode2 :: [Cell] -> [Cell]
+-- onlyCode2 = keep False True >>> filter
+--  cellout.hs:58:33: error:
+--      Ambiguous occurrence `filter'
+--      It could refer to either `Data.List.filter',
+--                               imported from `Data.List' at cellout.hs:3:1-16
+--                               (and originally defined in `GHC.List')
+--                            or `Data.Set.filter',
+--                               imported from `Data.Set' at cellout.hs:4:1-15
+--                               (and originally defined in `Data.Set.Internal')
+--     |
+--  58 | onlyCode2 = keep False True >>> filter
+--     |                                 ^^^^^^
 
