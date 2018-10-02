@@ -3,6 +3,7 @@ import Text.ParserCombinators.ReadP
 import Data.List
 import Data.Set (Set, empty)
 import Control.Arrow -- for >>>
+import qualified Data.Map.Strict as Map
 
 data Notebook =
     Notebook
@@ -17,12 +18,20 @@ data CommonCellContent =
     , metadata :: Set String
     } deriving Show
 
+-- TODO: output should be a list of mimebundles?
+data Output =
+    Output
+    { text :: Map.Map String String
+    } deriving (Show, Eq)
+
 data Cell
     = MarkdownCell CommonCellContent
-    | CodeCell  CommonCellContent
+    | CodeCell  CommonCellContent Output
     | RawCell CommonCellContent
     deriving Show
 
+emptyOutput :: Output
+emptyOutput = Output mempty
 -- let's think about this a bit, I'll be able to case-switch on cell type if I
 -- go with the above, but is that something I will want to do? I guess it makes
 -- the rest of the validation more explicit
@@ -31,20 +40,20 @@ data Cell
 testNb :: Notebook
 testNb = Notebook "hallo.ipynb"
     [ MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] empty
-    , CodeCell $ CommonCellContent ["print ('hello')"] empty
-    , CodeCell $ CommonCellContent [] empty
-    , CodeCell $ CommonCellContent [""] empty
-    , CodeCell $ CommonCellContent [""] empty
-    , CodeCell $ CommonCellContent [""] empty
-    , CodeCell $ CommonCellContent [""] empty
-    , CodeCell $ CommonCellContent ["print ('goodbye')\n"] empty
+    , CodeCell ( CommonCellContent ["print ('hello')"] empty ) emptyOutput
+    , CodeCell ( CommonCellContent [] empty ) emptyOutput
+    , CodeCell ( CommonCellContent [""] empty ) emptyOutput
+    , CodeCell ( CommonCellContent [""] empty ) emptyOutput
+    , CodeCell ( CommonCellContent [""] empty ) emptyOutput
+    , CodeCell ( CommonCellContent [""] empty ) emptyOutput
+    , CodeCell ( CommonCellContent ["print ('goodbye')\n"] empty ) emptyOutput
     ]
     empty -- should I be using mempty here?
 
-show' :: Cell -> String
-show' cell =  case cell of
+showCell :: Cell -> String
+showCell cell =  case cell of
     MarkdownCell c -> foldMap markdown_indicator (source c)
-    CodeCell c -> unlines $ source c
+    CodeCell c o -> unlines $ source c
 
 markdown_indicator :: String -> String
 markdown_indicator x = "### " ++ x ++ "\n"
@@ -54,13 +63,13 @@ isMarkdown (MarkdownCell _) = True
 isMarkdown _ = False
 
 isCode ::  Cell -> Bool
-isCode (CodeCell _) = True
+isCode (CodeCell _ _) = True
 isCode _ = False
 
 -- TODO not 100% sure what empty cells actually show up as.
 isEmpty ::  Cell -> Bool
 isEmpty (MarkdownCell c) = source c == [""]
-isEmpty (CodeCell c) = source c == [""]
+isEmpty (CodeCell c o) = source c == [""] && o == emptyOutput
 
 ---- let's do some quick filtering on cell type...
 onlyMarkdown :: [Cell] -> [Cell]
@@ -72,12 +81,24 @@ onlyCode = filter isCode
 clearEmpty :: [Cell] -> [Cell]
 clearEmpty = filter (not . isEmpty)
 
+clearMetadata :: Cell -> Cell
+clearMetadata (MarkdownCell (CommonCellContent src _)) = MarkdownCell (CommonCellContent src empty)
+clearMetadata (CodeCell (CommonCellContent src _) o) = CodeCell (CommonCellContent src empty) o
+clearMetadata (RawCell (CommonCellContent src _)) = RawCell (CommonCellContent src empty)
+
+clearCellMetadata :: [Cell] -> [Cell]
+clearCellMetadata = fmap clearMetadata
+
+clearOutput :: Cell -> Cell
+clearOutput (CodeCell (CommonCellContent src md) _) = CodeCell (CommonCellContent src md) emptyOutput
+
 
 mdBeforeCode :: Cell -> [Cell]
-mdBeforeCode (CodeCell x) =
-    [ MarkdownCell $  CommonCellContent [""] empty, (CodeCell x)]
+mdBeforeCode (CodeCell x o) =
+    [ MarkdownCell $  CommonCellContent [""] empty, (CodeCell x o)]
 mdBeforeCode x = [x]
 
+-- Inserting more cells
 mdBeforeEachCodeDumb :: [Cell] -> [Cell]
 mdBeforeEachCodeDumb cells = concatMap mdBeforeCode cells
 
@@ -88,46 +109,66 @@ mdBeforeEachCodeDumb cells = concatMap mdBeforeCode cells
 -- TODO: This, then also suggests we should return a Notebook, instead of a string.
 --
 --}
-content :: ([Cell] -> [Cell]) -> Notebook  -> String
-content filter
-    = cells
-    >>> filter
-    >>> fmap show'
-    >>> concat
+contentFiltering :: ([Cell] -> [Cell]) -> Notebook  -> String
+contentFiltering f
+    = printCells . cellsFilter f
+
+-- How do I copy over most elements from the old notebook and just change the cells aspect of it?
+cellsFilter :: ([Cell] -> [Cell]) -> Notebook  -> Notebook
+cellsFilter f (Notebook fname cs nbmeta)
+    = Notebook  fname (f cs) (nbmeta)
+
+-- oh, well, this is kind of dumb, because this is just
+--  function application... but at least it makes more explicit
+--  what kind of transformations we can have here (a richer
+--  set)
+nbFilter :: (Notebook -> Notebook) -> Notebook  -> Notebook
+nbFilter f = f 
+
+clearNbMetadata :: Notebook -> Notebook
+clearNbMetadata (Notebook fname cs nbmeta) = Notebook fname cs empty
 
 printCells :: Notebook -> String
 printCells
-    = content id
+    = cells
+    >>> fmap showCell
+    >>> concat
 
 onlyMarkdownContent :: Notebook -> String
 onlyMarkdownContent
-    = content onlyMarkdown
+    = contentFiltering onlyMarkdown
 
 onlyCodeContent :: Notebook -> String
 onlyCodeContent
-    = content onlyCode
+    = contentFiltering onlyCode
 
 onlyNonEmpty :: Notebook -> String
 onlyNonEmpty
-    = content clearEmpty
+    = contentFiltering clearEmpty
 
 insertMd :: Notebook -> String
 insertMd
-    = content mdBeforeEachCodeDumb
+    = contentFiltering mdBeforeEachCodeDumb
+
+reversed :: Notebook -> String
+reversed
+    = contentFiltering reverse
 
 main :: IO ()
 main = do
     putStr (show testNb)
-    putStrLn ""
+    putStrLn "%%% PRINT CELLS"
     putStrLn $ printCells testNb
     putStrLn ""
     putStrLn $ onlyMarkdownContent testNb
-    putStrLn "CODECODECODECODECODE"
+    putStrLn "%%% CODECODECODECODECODE"
     putStrLn $ onlyCodeContent testNb
-    putStrLn "EMPTIES removed"
+    putStrLn "%%% EMPTIES removed"
     putStrLn $ onlyNonEmpty testNb
-    putStrLn "Extra MARKDOWN "
+    putStrLn "%%% Extra MARKDOWN "
     putStrLn $ insertMd testNb
+    putStrLn "%%% Reversed"
+    putStrLn $ reversed testNb
 
 
 
@@ -136,15 +177,15 @@ main = do
 --
 ---printCells :: Notebook -> String
 -- printCells nb
---     = concat (fmap show' $ cells nb )
+--     = concat (fmap showCell $ cells nb )
 --
 -- onlyMarkdownContent :: Notebook -> String
--- onlyMarkdownContent nb = unwords . fmap show' $ onlyMarkdown $ cells (nb)
+-- onlyMarkdownContent nb = unwords . fmap showCell $ onlyMarkdown $ cells (nb)
 
 -- printCells :: Notebook -> String
 -- printCells
 --     = cells
---     >>> fmap show'
+--     >>> fmap showCell
 --     >>> concat
 
 ---- ARGH! why doesn't this work?
