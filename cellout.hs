@@ -39,7 +39,9 @@ emptyOutput = Output mempty
 
 testNb :: Notebook
 testNb = Notebook "hallo.ipynb"
-    [ MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] empty
+    [ MarkdownCell $ CommonCellContent ["# In the Beginning"] empty
+    , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] empty
+    , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] empty
     , CodeCell ( CommonCellContent ["print ('hello')"] empty ) emptyOutput
     , CodeCell ( CommonCellContent [] empty ) emptyOutput
     , CodeCell ( CommonCellContent [""] empty ) emptyOutput
@@ -50,10 +52,25 @@ testNb = Notebook "hallo.ipynb"
     ]
     empty -- should I be using mempty here?
 
-showCell :: Cell -> String
-showCell cell =  case cell of
+
+-- TODO: markdown_indicator will need to be language sensitve, passed in, or
+-- else no makrdown cells should be included
+asCode :: Cell -> String
+asCode cell =  case cell of
     MarkdownCell c -> foldMap markdown_indicator (source c)
     CodeCell c o -> unlines $ source c
+
+
+-- TODO: same as markdown_indicator above, we need a code_indicator below for
+-- language specific syntax highlighting for the people who want that sort of
+-- thing
+asMarkdown:: Cell -> String
+asMarkdown cell =  case cell of
+    MarkdownCell c -> unlines ( source c) ++ "\n"
+    -- -- At some point I thought I might need to add extra new lines between
+    -- -- markdown, but I dont' think that' s true...
+    -- MarkdownCell c -> unlines . (intersperse "\n") $ source c
+    CodeCell c o -> "```\n" ++ (unlines $ source c) ++ "```\n\n"
 
 markdown_indicator :: String -> String
 markdown_indicator x = "### " ++ x ++ "\n"
@@ -123,7 +140,7 @@ cellsFilter f (Notebook fname cs nbmeta)
 --  what kind of transformations we can have here (a richer
 --  set)
 nbFilter :: (Notebook -> Notebook) -> Notebook  -> Notebook
-nbFilter f = f 
+nbFilter f = f
 
 clearNbMetadata :: Notebook -> Notebook
 clearNbMetadata (Notebook fname cs nbmeta) = Notebook fname cs empty
@@ -131,7 +148,13 @@ clearNbMetadata (Notebook fname cs nbmeta) = Notebook fname cs empty
 printCells :: Notebook -> String
 printCells
     = cells
-    >>> fmap showCell
+    >>> fmap asCode
+    >>> concat
+
+-- for now, this ignores any metadata...
+showNb :: (Cell -> String) -> Notebook -> String
+showNb f = cells
+    >>> fmap f
     >>> concat
 
 onlyMarkdownContent :: Notebook -> String
@@ -142,9 +165,9 @@ onlyCodeContent :: Notebook -> String
 onlyCodeContent
     = contentFiltering onlyCode
 
-onlyNonEmpty :: Notebook -> String
+onlyNonEmpty :: Notebook -> Notebook
 onlyNonEmpty
-    = contentFiltering clearEmpty
+    = cellsFilter clearEmpty
 
 insertMd :: Notebook -> String
 insertMd
@@ -159,16 +182,18 @@ main = do
     putStr (show testNb)
     putStrLn "%%% PRINT CELLS"
     putStrLn $ printCells testNb
-    putStrLn ""
-    putStrLn $ onlyMarkdownContent testNb
-    putStrLn "%%% CODECODECODECODECODE"
-    putStrLn $ onlyCodeContent testNb
-    putStrLn "%%% EMPTIES removed"
-    putStrLn $ onlyNonEmpty testNb
-    putStrLn "%%% Extra MARKDOWN "
-    putStrLn $ insertMd testNb
-    putStrLn "%%% Reversed"
-    putStrLn $ reversed testNb
+    putStrLn $ showNb asCode testNb
+    putStrLn $ showNb asMarkdown (onlyNonEmpty testNb)
+    -- putStrLn ""
+    -- putStrLn $ onlyMarkdownContent testNb
+    -- putStrLn "%%% CODECODECODECODECODE"
+    -- putStrLn $ onlyCodeContent testNb
+    -- putStrLn "%%% EMPTIES removed"
+    -- putStrLn $ onlyNonEmpty testNb
+    -- putStrLn "%%% Extra MARKDOWN "
+    -- putStrLn $ insertMd testNb
+    -- putStrLn "%%% Reversed"
+    -- putStrLn $ reversed testNb
 
 
 
@@ -177,15 +202,15 @@ main = do
 --
 ---printCells :: Notebook -> String
 -- printCells nb
---     = concat (fmap showCell $ cells nb )
+--     = concat (fmap asCode $ cells nb )
 --
 -- onlyMarkdownContent :: Notebook -> String
--- onlyMarkdownContent nb = unwords . fmap showCell $ onlyMarkdown $ cells (nb)
+-- onlyMarkdownContent nb = unwords . fmap asCode $ onlyMarkdown $ cells (nb)
 
 -- printCells :: Notebook -> String
 -- printCells
 --     = cells
---     >>> fmap showCell
+--     >>> fmap asCode
 --     >>> concat
 
 ---- ARGH! why doesn't this work?
@@ -215,3 +240,22 @@ main = do
 --
 -- isMarkdown ::  Cell -> Bool
 -- isMarkdown = keep True False
+--
+-- 2018-10-02
+-- ideas:
+-- [ ] look at some nbconvert stuff for functionality
+-- [ ] executable traversal (writing back to the code cell output)
+-- [ ] command-line spellchecking facility?
+-- [ ] wrapped (kanten-style) notebook presentation?
+-- [ ] interactive mode with live preview  for size and content?
+-- [ ] metadata editor
+-- [ ] selecting only cells matching a tag, or filtering them out
+-- [ ] interactive cell-level editing marking/tagging
+--
+-- output as ->
+-- [x] executable script
+-- [x] code only (filter codecell and strip output)
+-- [x] markdown
+-- [ ] notebook
+--
+--
