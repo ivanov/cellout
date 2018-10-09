@@ -130,6 +130,9 @@ contentFiltering :: ([Cell] -> [Cell]) -> Notebook  -> String
 contentFiltering f
     = printCells . cellsFilter f
 
+cellMap :: (Cell -> a) -> Notebook  -> [a]
+cellMap f n = map f (cells n)
+
 -- How do I copy over most elements from the old notebook and just change the cells aspect of it?
 cellsFilter :: ([Cell] -> [Cell]) -> Notebook  -> Notebook
 cellsFilter f (Notebook fname cs nbmeta)
@@ -176,6 +179,15 @@ insertMd
 reversed :: Notebook -> String
 reversed
     = contentFiltering reverse
+
+source' :: Cell -> [String]
+source' (MarkdownCell c) = source c
+source' (CodeCell c _) = source c
+
+wordCount :: Cell -> (Int, Int, Int)
+wordCount c = let s =  unlines . source' $  c
+  in
+    (length (lines s), length (words s), length s)
 
 main :: IO ()
 main = do
