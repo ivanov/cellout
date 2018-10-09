@@ -1,34 +1,56 @@
+{-# LANGUAGE DeriveGeneric #-}
 
-import Text.ParserCombinators.ReadP
+import Control.Arrow -- for >>>
+import Data.Aeson
 import Data.List
 import Data.Set (Set, empty)
-import Control.Arrow -- for >>>
+import Data.Text.Encoding
+import GHC.Generics
+import Text.ParserCombinators.ReadP
+import qualified Data.ByteString as B
+import qualified Data.ByteString.Lazy as LB
 import qualified Data.Map.Strict as Map
+import qualified Data.Text as T
 
 data Notebook =
     Notebook
     { filename :: String
     , cells :: [ Cell ]
     , nbmetadata :: Set String
-    } deriving Show
+    } deriving (Show, Generic)
 
 data CommonCellContent =
     CommonCellContent
     { source :: [String]
     , metadata :: Set String
-    } deriving Show
+    } deriving (Show, Generic)
 
 -- TODO: output should be a list of mimebundles?
 data Output =
     Output
     { text :: Map.Map String String
-    } deriving (Show, Eq)
+    } deriving (Show, Eq, Generic)
 
 data Cell
     = MarkdownCell CommonCellContent
     | CodeCell  CommonCellContent Output
     | RawCell CommonCellContent
-    deriving Show
+    deriving (Show, Generic)
+
+
+instance FromJSON Notebook
+instance ToJSON Notebook
+
+instance FromJSON Cell
+instance ToJSON Cell
+
+instance FromJSON CommonCellContent
+instance ToJSON CommonCellContent
+
+instance FromJSON Output
+instance ToJSON Output
+
+
 
 emptyOutput :: Output
 emptyOutput = Output mempty
@@ -196,6 +218,8 @@ main = do
     putStrLn $ printCells testNb
     putStrLn $ showNb asCode testNb
     putStrLn $ showNb asMarkdown (onlyNonEmpty testNb)
+    putStrLn $ T.unpack . decodeUtf8 . LB.toStrict . encode $ (onlyNonEmpty testNb)
+    -- print . decodeUtf8 . B.toStrict . encode $ testNb
     -- putStrLn ""
     -- putStrLn $ onlyMarkdownContent testNb
     -- putStrLn "%%% CODECODECODECODECODE"
