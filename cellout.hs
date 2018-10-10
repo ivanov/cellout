@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric #-}
+-- {-# LANGUAGE OverloadedStrings #-} -- would get rid of T.pack
 
 import Control.Arrow -- for >>>
 import Data.Aeson
@@ -9,6 +10,7 @@ import GHC.Generics
 import Text.ParserCombinators.ReadP
 import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
+import qualified Data.HashMap.Lazy as HML
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
@@ -41,8 +43,21 @@ data Cell
 instance FromJSON Notebook
 instance ToJSON Notebook
 
+cell_type = T.pack "cell_type"
+
 instance FromJSON Cell
-instance ToJSON Cell
+instance ToJSON Cell where
+    -- toJSON (MarkdownCell c) = object $ [ cell_type .= "markdown" ]
+    -- toJSON (CodeCell c o) = object $ [ cell_type .= "code" ]
+    toJSON (MarkdownCell c) = Object $ HML.insert cell_type (toJSON "markdown") (unobject $ toJSON c)
+    toJSON (CodeCell c o) = object $ [ cell_type .= "code" ]
+
+unobject ::  Value -> HML.HashMap T.Text Value
+unobject (Object x) =  x
+unobject _ = HML.empty
+
+merge :: Value -> Value -> Value
+merge (Object x) (Object y) = Object $ HML.union x y
 
 instance FromJSON CommonCellContent
 instance ToJSON CommonCellContent
@@ -73,6 +88,11 @@ testNb = Notebook "hallo.ipynb"
     , CodeCell ( CommonCellContent ["print ('goodbye')\n"] empty ) emptyOutput
     ]
     empty -- should I be using mempty here?
+
+common :: Cell -> CommonCellContent
+common (MarkdownCell c) = c
+common (CodeCell c _) = c
+common (RawCell c) = c
 
 
 -- TODO: markdown_indicator will need to be language sensitve, passed in, or
@@ -211,6 +231,9 @@ wordCount c = let s =  unlines . source' $  c
   in
     (length (lines s), length (words s), length s)
 
+writeNb :: FilePath -> Notebook -> IO ()
+writeNb file nb = LB.writeFile file (encode testNb)
+
 main :: IO ()
 main = do
     putStr (show testNb)
@@ -219,17 +242,8 @@ main = do
     putStrLn $ showNb asCode testNb
     putStrLn $ showNb asMarkdown (onlyNonEmpty testNb)
     putStrLn $ T.unpack . decodeUtf8 . LB.toStrict . encode $ (onlyNonEmpty testNb)
-    -- print . decodeUtf8 . B.toStrict . encode $ testNb
-    -- putStrLn ""
-    -- putStrLn $ onlyMarkdownContent testNb
-    -- putStrLn "%%% CODECODECODECODECODE"
-    -- putStrLn $ onlyCodeContent testNb
-    -- putStrLn "%%% EMPTIES removed"
-    -- putStrLn $ onlyNonEmpty testNb
-    -- putStrLn "%%% Extra MARKDOWN "
-    -- putStrLn $ insertMd testNb
-    -- putStrLn "%%% Reversed"
-    -- putStrLn $ reversed testNb
+    writeNb "C:\\bbg\\jlabremix\\tmp\\hi.ipynb" testNb
+    --(toEncoding . source . common . (!! 3) . cells) testNb
 
 
 
@@ -250,6 +264,7 @@ main = do
 --     >>> concat
 
 ---- ARGH! why doesn't this work?
+-- -- 2018-10-09 - I know now, you have to qualified import
 -- onlyCode2 :: [Cell] -> [Cell]
 -- onlyCode2 = keep False True >>> filter
 --  cellout.hs:58:33: error:
@@ -287,6 +302,7 @@ main = do
 -- [ ] metadata editor
 -- [ ] selecting only cells matching a tag, or filtering them out
 -- [ ] interactive cell-level editing marking/tagging
+-- [ ] nbformat fuzzing tool?
 --
 -- output as ->
 -- [x] executable script
@@ -294,4 +310,7 @@ main = do
 -- [x] markdown
 -- [ ] notebook
 --
+-- 2018-10-09
+-- [ ] current serialization doesn't match nbformat:
+--      Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb AttributeError('cell_type',)
 --
