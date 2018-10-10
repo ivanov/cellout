@@ -372,3 +372,9 @@ main = do
 -- [ ] Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb UnboundLocalError("local variable 'newcell' referenced before assignment",)
 -- [ ] probably remove the nbformat major/minor from the Notebook model and
 --     have some mixin that does that at the end (most filters won't car about nbformat version)
+--
+-- from Anthony:
+--     multiparameter type classes --
+--     threadscope...
+-- typeclasses - Show Eq -- Functor Traversable Applicative Monoid Monad
+-- import Data.List hiding filter  -- from Anthony
