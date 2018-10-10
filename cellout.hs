@@ -16,41 +16,62 @@ import qualified Data.Text as T
 
 data Notebook =
     Notebook
-    { filename :: String
-    , cells :: [ Cell ]
-    , nbmetadata :: Set String
+    { cells :: [ Cell ]
+    , nbmetadata :: Map.Map String String -- should be possible to do nested StringOrMap
+    , nbformat :: Int
+    , nbformat_minor :: Int
     } deriving (Show, Generic)
+
+-- Notebook4 :: [Cell] -> (Map.Map String Sting)
+notebook :: [Cell] -> Map.Map String String ->  Notebook
+notebook c m  = Notebook c m 4 2
 
 data CommonCellContent =
     CommonCellContent
     { source :: [String]
-    , metadata :: Set String
+    , metadata :: Map.Map String String -- same as nested comment above
     } deriving (Show, Generic)
 
 -- TODO: output should be a list of mimebundles?
-data Output =
-    Output
-    { text :: Map.Map String String
+data Output
+    = OutputExecuteResult MimeBundle Int (Map.Map String String)
+    | OuputStream [String]
+    deriving (Show, Eq, Generic)
+
+data MimeBundle  = MimeBundle
+    { text :: Map.Map String String -- 'text' should get re-keyd to 'data' on serialization
     } deriving (Show, Eq, Generic)
 
 data Cell
     = MarkdownCell CommonCellContent
-    | CodeCell  CommonCellContent Output
+    | CodeCell  CommonCellContent [Output]
     | RawCell CommonCellContent
     deriving (Show, Generic)
 
 
 instance FromJSON Notebook
-instance ToJSON Notebook
+instance ToJSON Notebook where
+    toEncoding = genericToEncoding defaultOptions{
+        fieldLabelModifier = \x ->
+        if x == "nbmetadata"
+            then "metadata"
+        else
+            x
+        }
 
 cell_type = T.pack "cell_type"
+output = T.pack "outputs"
 
 instance FromJSON Cell
 instance ToJSON Cell where
     -- toJSON (MarkdownCell c) = object $ [ cell_type .= "markdown" ]
     -- toJSON (CodeCell c o) = object $ [ cell_type .= "code" ]
     toJSON (MarkdownCell c) = Object $ HML.insert cell_type (toJSON "markdown") (unobject $ toJSON c)
-    toJSON (CodeCell c o) = object $ [ cell_type .= "code" ]
+    toJSON (CodeCell c o) = merge (object [ cell_type .= "code", output .= o]) (toJSON c)
+
+-- toJSONCellType :: String -> CommonCellContent -> Value
+-- toJSONMarkdown ::
+-- toJSONMarkdown =
 
 unobject ::  Value -> HML.HashMap T.Text Value
 unobject (Object x) =  x
@@ -65,29 +86,35 @@ instance ToJSON CommonCellContent
 instance FromJSON Output
 instance ToJSON Output
 
+instance FromJSON MimeBundle
+instance ToJSON MimeBundle
 
 
-emptyOutput :: Output
-emptyOutput = Output mempty
+emptyOutput :: [Output]
+emptyOutput = []
+
+output1 :: String -> String -> Int -> [Output]
+output1 k v i = [OutputExecuteResult (MimeBundle $ Map.singleton k v) i mempty]
+
 -- let's think about this a bit, I'll be able to case-switch on cell type if I
 -- go with the above, but is that something I will want to do? I guess it makes
 -- the rest of the validation more explicit
---
+
 
 testNb :: Notebook
-testNb = Notebook "hallo.ipynb"
-    [ MarkdownCell $ CommonCellContent ["# In the Beginning"] empty
-    , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] empty
-    , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] empty
-    , CodeCell ( CommonCellContent ["print ('hello')"] empty ) emptyOutput
-    , CodeCell ( CommonCellContent [] empty ) emptyOutput
-    , CodeCell ( CommonCellContent [""] empty ) emptyOutput
-    , CodeCell ( CommonCellContent [""] empty ) emptyOutput
-    , CodeCell ( CommonCellContent [""] empty ) emptyOutput
-    , CodeCell ( CommonCellContent [""] empty ) emptyOutput
-    , CodeCell ( CommonCellContent ["print ('goodbye')\n"] empty ) emptyOutput
+testNb = notebook 
+    [ MarkdownCell $ CommonCellContent ["# In the Beginning"] mempty
+    , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] mempty
+    , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] mempty
+    , CodeCell ( CommonCellContent ["print ('hello')"]  mempty) (output1 "text/plain" "hello" 1 )
+    , CodeCell ( CommonCellContent [] mempty ) emptyOutput
+    , CodeCell ( CommonCellContent [""] mempty ) emptyOutput
+    , CodeCell ( CommonCellContent [""] mempty ) emptyOutput
+    , CodeCell ( CommonCellContent [""] mempty ) emptyOutput
+    , CodeCell ( CommonCellContent [""] mempty ) emptyOutput
+    , CodeCell ( CommonCellContent ["print ('goodbye')\n"] mempty ) emptyOutput
     ]
-    empty -- should I be using mempty here?
+    mempty -- should I be using mempty here?
 
 common :: Cell -> CommonCellContent
 common (MarkdownCell c) = c
@@ -141,9 +168,9 @@ clearEmpty :: [Cell] -> [Cell]
 clearEmpty = filter (not . isEmpty)
 
 clearMetadata :: Cell -> Cell
-clearMetadata (MarkdownCell (CommonCellContent src _)) = MarkdownCell (CommonCellContent src empty)
-clearMetadata (CodeCell (CommonCellContent src _) o) = CodeCell (CommonCellContent src empty) o
-clearMetadata (RawCell (CommonCellContent src _)) = RawCell (CommonCellContent src empty)
+clearMetadata (MarkdownCell (CommonCellContent src _)) = MarkdownCell (CommonCellContent src mempty)
+clearMetadata (CodeCell (CommonCellContent src _) o) = CodeCell (CommonCellContent src mempty) o
+clearMetadata (RawCell (CommonCellContent src _)) = RawCell (CommonCellContent src mempty)
 
 clearCellMetadata :: [Cell] -> [Cell]
 clearCellMetadata = fmap clearMetadata
@@ -154,7 +181,7 @@ clearOutput (CodeCell (CommonCellContent src md) _) = CodeCell (CommonCellConten
 
 mdBeforeCode :: Cell -> [Cell]
 mdBeforeCode (CodeCell x o) =
-    [ MarkdownCell $  CommonCellContent [""] empty, (CodeCell x o)]
+    [ MarkdownCell $  CommonCellContent [""] mempty, (CodeCell x o)]
 mdBeforeCode x = [x]
 
 -- Inserting more cells
@@ -177,8 +204,8 @@ cellMap f n = map f (cells n)
 
 -- How do I copy over most elements from the old notebook and just change the cells aspect of it?
 cellsFilter :: ([Cell] -> [Cell]) -> Notebook  -> Notebook
-cellsFilter f (Notebook fname cs nbmeta)
-    = Notebook  fname (f cs) (nbmeta)
+cellsFilter f (Notebook cs nbmeta fmt m)
+    = Notebook (f cs) nbmeta fmt m
 
 -- oh, well, this is kind of dumb, because this is just
 --  function application... but at least it makes more explicit
@@ -188,7 +215,7 @@ nbFilter :: (Notebook -> Notebook) -> Notebook  -> Notebook
 nbFilter f = f
 
 clearNbMetadata :: Notebook -> Notebook
-clearNbMetadata (Notebook fname cs nbmeta) = Notebook fname cs empty
+clearNbMetadata (Notebook cs nbmeta f m) = Notebook cs mempty f m
 
 printCells :: Notebook -> String
 printCells
@@ -222,6 +249,9 @@ reversed :: Notebook -> String
 reversed
     = contentFiltering reverse
 
+onlyCell ::  Int -> Notebook -> Notebook
+onlyCell i (Notebook c n f m) =  Notebook [ c !! i ] n f m
+
 source' :: Cell -> [String]
 source' (MarkdownCell c) = source c
 source' (CodeCell c _) = source c
@@ -232,17 +262,18 @@ wordCount c = let s =  unlines . source' $  c
     (length (lines s), length (words s), length s)
 
 writeNb :: FilePath -> Notebook -> IO ()
-writeNb file nb = LB.writeFile file (encode testNb)
+writeNb file nb = LB.writeFile file (encode nb)
 
 main :: IO ()
 main = do
-    putStr (show testNb)
-    putStrLn "%%% PRINT CELLS"
-    putStrLn $ printCells testNb
-    putStrLn $ showNb asCode testNb
-    putStrLn $ showNb asMarkdown (onlyNonEmpty testNb)
-    putStrLn $ T.unpack . decodeUtf8 . LB.toStrict . encode $ (onlyNonEmpty testNb)
-    writeNb "C:\\bbg\\jlabremix\\tmp\\hi.ipynb" testNb
+    -- putStr (show testNb)
+    -- putStrLn "%%% PRINT CELLS"
+    -- putStrLn $ printCells testNb
+    -- putStrLn $ showNb asCode testNb
+    -- putStrLn $ showNb asMarkdown (onlyNonEmpty testNb)
+    -- putStrLn $ T.unpack . decodeUtf8 . LB.toStrict . encode $ (onlyNonEmpty testNb)
+    let newNb = (onlyCell 0 testNb)
+        in writeNb "C:\\bbg\\jlabremix\\tmp\\hi.ipynb"  newNb
     --(toEncoding . source . common . (!! 3) . cells) testNb
 
 
@@ -313,4 +344,7 @@ main = do
 -- 2018-10-09
 -- [ ] current serialization doesn't match nbformat:
 --      Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb AttributeError('cell_type',)
---
+-- [ ] when you have more than one execute_count output in a code cell, which one should be shown? all?
+-- [ ] Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb UnboundLocalError("local variable 'newcell' referenced before assignment",)
+-- [ ] probably remove the nbformat major/minor from the Notebook model and
+--     have some mixin that does that at the end (most filters won't car about nbformat version)
