@@ -29,18 +29,22 @@ notebook c m  = Notebook c m 4 2
 data CommonCellContent =
     CommonCellContent
     { source :: [String]
-    , metadata :: Map.Map String String -- same as nested comment above
+    , cellmetadata :: Map.Map String String -- same as nested comment above
     } deriving (Show, Generic)
+
+
+type MimeBundle = Map.Map String String -- 'text' should get re-keyd to 'data' on serialization
+
 
 -- TODO: output should be a list of mimebundles?
 data Output
-    = OutputExecuteResult MimeBundle Int (Map.Map String String)
+    = OutputExecutionResult
+        { dat :: MimeBundle
+        , execution_count :: Int
+        , outputmetadata :: (Map.Map String String)
+        }
     | OuputStream [String]
     deriving (Show, Eq, Generic)
-
-data MimeBundle  = MimeBundle
-    { text :: Map.Map String String -- 'text' should get re-keyd to 'data' on serialization
-    } deriving (Show, Eq, Generic)
 
 data Cell
     = MarkdownCell CommonCellContent
@@ -49,15 +53,21 @@ data Cell
     deriving (Show, Generic)
 
 
+metaCorrector  :: String -> String
+metaCorrector x =
+    if isSuffixOf "metadata" x
+    then "metadata"
+    else x
+
+dat2data :: String -> String
+dat2data "dat" = "data"
+dat2data x = x
+
+
 instance FromJSON Notebook
 instance ToJSON Notebook where
-    toEncoding = genericToEncoding defaultOptions{
-        fieldLabelModifier = \x ->
-        if x == "nbmetadata"
-            then "metadata"
-        else
-            x
-        }
+    toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
+
 
 cell_type = T.pack "cell_type"
 output = T.pack "outputs"
@@ -81,20 +91,33 @@ merge :: Value -> Value -> Value
 merge (Object x) (Object y) = Object $ HML.union x y
 
 instance FromJSON CommonCellContent
-instance ToJSON CommonCellContent
+instance ToJSON CommonCellContent where
+    -- toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
+    toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
+    toJSON = genericToJSON defaultOptions{ fieldLabelModifier = metaCorrector }
 
 instance FromJSON Output
-instance ToJSON Output
+instance ToJSON Output where
+    toEncoding = genericToEncoding defaultOptions{
+        sumEncoding = UntaggedValue,
+        -- sumEncoding = ObjectWithSingleField,
+        unwrapUnaryRecords = True,
+        fieldLabelModifier = metaCorrector
+        }
+    toJSON = genericToJSON defaultOptions{
+        sumEncoding = UntaggedValue,
+        unwrapUnaryRecords = True,
+        fieldLabelModifier = metaCorrector . dat2data,
+        constructorTagModifier = \x -> "data"
+        }
 
-instance FromJSON MimeBundle
-instance ToJSON MimeBundle
 
 
 emptyOutput :: [Output]
 emptyOutput = []
 
 output1 :: String -> String -> Int -> [Output]
-output1 k v i = [OutputExecuteResult (MimeBundle $ Map.singleton k v) i mempty]
+output1 k v i = [(OutputExecutionResult $ Map.singleton k v) i mempty]
 
 -- let's think about this a bit, I'll be able to case-switch on cell type if I
 -- go with the above, but is that something I will want to do? I guess it makes
@@ -102,7 +125,7 @@ output1 k v i = [OutputExecuteResult (MimeBundle $ Map.singleton k v) i mempty]
 
 
 testNb :: Notebook
-testNb = notebook 
+testNb = notebook
     [ MarkdownCell $ CommonCellContent ["# In the Beginning"] mempty
     , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] mempty
     , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] mempty
@@ -116,6 +139,7 @@ testNb = notebook
     ]
     mempty -- should I be using mempty here?
 
+oneNb = onlyCell 3 testNb
 common :: Cell -> CommonCellContent
 common (MarkdownCell c) = c
 common (CodeCell c _) = c
@@ -272,7 +296,7 @@ main = do
     -- putStrLn $ showNb asCode testNb
     -- putStrLn $ showNb asMarkdown (onlyNonEmpty testNb)
     -- putStrLn $ T.unpack . decodeUtf8 . LB.toStrict . encode $ (onlyNonEmpty testNb)
-    let newNb = (onlyCell 0 testNb)
+    let newNb = (onlyCell 3 testNb)
         in writeNb "C:\\bbg\\jlabremix\\tmp\\hi.ipynb"  newNb
     --(toEncoding . source . common . (!! 3) . cells) testNb
 
