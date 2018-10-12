@@ -38,7 +38,7 @@ type MimeBundle = Map.Map String String -- 'text' should get re-keyd to 'data' o
 
 -- TODO: output should be a list of mimebundles?
 data Output
-    = OutputExecutionResult
+    = OutputExecuteResult
         { dat :: MimeBundle
         , execution_count :: Int
         , outputmetadata :: (Map.Map String String)
@@ -46,9 +46,12 @@ data Output
     | OuputStream [String]
     deriving (Show, Eq, Generic)
 
+data ExecutionCount = ExecutionCount (Maybe Int)
+   deriving (Show, Eq, Generic)
+
 data Cell
     = MarkdownCell CommonCellContent
-    | CodeCell  CommonCellContent [Output]
+    | CodeCell  CommonCellContent [Output] ExecutionCount
     | RawCell CommonCellContent
     deriving (Show, Generic)
 
@@ -63,6 +66,9 @@ dat2data :: String -> String
 dat2data "dat" = "data"
 dat2data x = x
 
+tag2output_type :: String -> String
+tag2output_type "tag" = "output_type"
+tag2output_type x = x
 
 instance FromJSON Notebook
 instance ToJSON Notebook where
@@ -70,14 +76,18 @@ instance ToJSON Notebook where
 
 
 cell_type = T.pack "cell_type"
-output = T.pack "outputs"
+outputs = T.pack "outputs"
+
+empty_execution_count = ExecutionCount Nothing
 
 instance FromJSON Cell
 instance ToJSON Cell where
     -- toJSON (MarkdownCell c) = object $ [ cell_type .= "markdown" ]
-    -- toJSON (CodeCell c o) = object $ [ cell_type .= "code" ]
+    -- toJSON (CodeCell c o i) = object $ [ cell_type .= "code" ]
     toJSON (MarkdownCell c) = Object $ HML.insert cell_type (toJSON "markdown") (unobject $ toJSON c)
-    toJSON (CodeCell c o) = merge (object [ cell_type .= "code", output .= o]) (toJSON c)
+    -- TODO: change this to genericToEncoding with new options
+    toJSON (CodeCell c o i) = merge (object [ cell_type .= "code", outputs .= o])
+                            $ merge (toJSON c) (toJSON i)
 
 -- toJSONCellType :: String -> CommonCellContent -> Value
 -- toJSONMarkdown ::
@@ -105,19 +115,40 @@ instance ToJSON Output where
         fieldLabelModifier = metaCorrector
         }
     toJSON = genericToJSON defaultOptions{
-        sumEncoding = UntaggedValue,
+        -- sumEncoding = UntaggedValue,
+        sumEncoding = TaggedObject "output_type" "contents",
         unwrapUnaryRecords = True,
-        fieldLabelModifier = metaCorrector . dat2data,
-        constructorTagModifier = \x -> "data"
+        fieldLabelModifier = metaCorrector . dat2data . tag2output_type,
+        constructorTagModifier = \x -> if x == "OutputExecuteResult" then "execute_result" else x
         }
 
 
+instance FromJSON ExecutionCount
+instance ToJSON ExecutionCount where
+    toEncoding = genericToEncoding defaultOptions{
+        --sumEncoding = TaggedObject "execution_count" "contents",
+        sumEncoding = ObjectWithSingleField,
+        unwrapUnaryRecords = True,
+        fieldLabelModifier = metaCorrector,
+        tagSingleConstructors = True,
+        constructorTagModifier = \x -> if x == "ExecutionCount" then "execution_count" else x
+        }
+    toJSON = genericToJSON defaultOptions{
+        --sumEncoding = TaggedObject "execution_count" "contents",
+        sumEncoding = ObjectWithSingleField,
+        unwrapUnaryRecords = True,
+        fieldLabelModifier = metaCorrector,
+        tagSingleConstructors = True,
+        constructorTagModifier = \x -> if x == "ExecutionCount" then "execution_count" else x
+        }
+
+-- map
 
 emptyOutput :: [Output]
 emptyOutput = []
 
 output1 :: String -> String -> Int -> [Output]
-output1 k v i = [(OutputExecutionResult $ Map.singleton k v) i mempty]
+output1 k v i = [(OutputExecuteResult $ Map.singleton k v) i mempty]
 
 -- let's think about this a bit, I'll be able to case-switch on cell type if I
 -- go with the above, but is that something I will want to do? I guess it makes
@@ -126,23 +157,23 @@ output1 k v i = [(OutputExecutionResult $ Map.singleton k v) i mempty]
 
 testNb :: Notebook
 testNb = notebook
-    [ MarkdownCell $ CommonCellContent ["# In the Beginning"] mempty
-    , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] mempty
-    , MarkdownCell $ CommonCellContent ["yo", "I'm a multiline markdown cell"] mempty
-    , CodeCell ( CommonCellContent ["print ('hello')"]  mempty) (output1 "text/plain" "hello" 1 )
-    , CodeCell ( CommonCellContent [] mempty ) emptyOutput
-    , CodeCell ( CommonCellContent [""] mempty ) emptyOutput
-    , CodeCell ( CommonCellContent [""] mempty ) emptyOutput
-    , CodeCell ( CommonCellContent [""] mempty ) emptyOutput
-    , CodeCell ( CommonCellContent [""] mempty ) emptyOutput
-    , CodeCell ( CommonCellContent ["print ('goodbye')\n"] mempty ) emptyOutput
+    [ MarkdownCell $ CommonCellContent ["# In the Beginning\n"] mempty
+    , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
+    , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
+    , CodeCell ( CommonCellContent ["print ('hello')"]  mempty) (output1 "text/plain" "hello" 1 ) empty_execution_count
+    , CodeCell ( CommonCellContent [] mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent ["print ('goodbye')\n"] mempty) emptyOutput empty_execution_count
     ]
     mempty -- should I be using mempty here?
 
 oneNb = onlyCell 3 testNb
 common :: Cell -> CommonCellContent
 common (MarkdownCell c) = c
-common (CodeCell c _) = c
+common (CodeCell c _ _) = c
 common (RawCell c) = c
 
 
@@ -151,7 +182,7 @@ common (RawCell c) = c
 asCode :: Cell -> String
 asCode cell =  case cell of
     MarkdownCell c -> foldMap markdown_indicator (source c)
-    CodeCell c o -> unlines $ source c
+    CodeCell c _ _-> unlines $ source c
 
 
 -- TODO: same as markdown_indicator above, we need a code_indicator below for
@@ -163,7 +194,7 @@ asMarkdown cell =  case cell of
     -- -- At some point I thought I might need to add extra new lines between
     -- -- markdown, but I dont' think that' s true...
     -- MarkdownCell c -> unlines . (intersperse "\n") $ source c
-    CodeCell c o -> "```\n" ++ (unlines $ source c) ++ "```\n\n"
+    CodeCell c o _ -> "```\n" ++ (unlines $ source c) ++ "```\n\n"
 
 markdown_indicator :: String -> String
 markdown_indicator x = "### " ++ x ++ "\n"
@@ -173,13 +204,13 @@ isMarkdown (MarkdownCell _) = True
 isMarkdown _ = False
 
 isCode ::  Cell -> Bool
-isCode (CodeCell _ _) = True
+isCode (CodeCell _ _ _) = True
 isCode _ = False
 
 -- TODO not 100% sure what empty cells actually show up as.
 isEmpty ::  Cell -> Bool
 isEmpty (MarkdownCell c) = source c == [""]
-isEmpty (CodeCell c o) = source c == [""] && o == emptyOutput
+isEmpty (CodeCell c o _) = source c == [""] && o == emptyOutput
 
 ---- let's do some quick filtering on cell type...
 onlyMarkdown :: [Cell] -> [Cell]
@@ -193,19 +224,19 @@ clearEmpty = filter (not . isEmpty)
 
 clearMetadata :: Cell -> Cell
 clearMetadata (MarkdownCell (CommonCellContent src _)) = MarkdownCell (CommonCellContent src mempty)
-clearMetadata (CodeCell (CommonCellContent src _) o) = CodeCell (CommonCellContent src mempty) o
+clearMetadata (CodeCell (CommonCellContent src _) o i) = CodeCell (CommonCellContent src mempty) o i
 clearMetadata (RawCell (CommonCellContent src _)) = RawCell (CommonCellContent src mempty)
 
 clearCellMetadata :: [Cell] -> [Cell]
 clearCellMetadata = fmap clearMetadata
 
 clearOutput :: Cell -> Cell
-clearOutput (CodeCell (CommonCellContent src md) _) = CodeCell (CommonCellContent src md) emptyOutput
+clearOutput (CodeCell (CommonCellContent src md) _ _) = CodeCell (CommonCellContent src md) emptyOutput empty_execution_count
 
 
 mdBeforeCode :: Cell -> [Cell]
-mdBeforeCode (CodeCell x o) =
-    [ MarkdownCell $  CommonCellContent [""] mempty, (CodeCell x o)]
+mdBeforeCode (CodeCell x o i) =
+    [ MarkdownCell $  CommonCellContent [""] mempty, (CodeCell x o i)]
 mdBeforeCode x = [x]
 
 -- Inserting more cells
@@ -278,7 +309,7 @@ onlyCell i (Notebook c n f m) =  Notebook [ c !! i ] n f m
 
 source' :: Cell -> [String]
 source' (MarkdownCell c) = source c
-source' (CodeCell c _) = source c
+source' (CodeCell c _ _) = source c
 
 wordCount :: Cell -> (Int, Int, Int)
 wordCount c = let s =  unlines . source' $  c
@@ -296,9 +327,10 @@ main = do
     -- putStrLn $ showNb asCode testNb
     -- putStrLn $ showNb asMarkdown (onlyNonEmpty testNb)
     -- putStrLn $ T.unpack . decodeUtf8 . LB.toStrict . encode $ (onlyNonEmpty testNb)
-    let newNb = (onlyCell 3 testNb)
+    --let newNb = (onlyCell 3 testNb)
+    let newNb = testNb
         in writeNb "C:\\bbg\\jlabremix\\tmp\\hi.ipynb"  newNb
-    --(toEncoding . source . common . (!! 3) . cells) testNb
+    -- (toEncoding . source . common . (!! 3) . cells) testNb
 
 
 
@@ -378,3 +410,11 @@ main = do
 --     threadscope...
 -- typeclasses - Show Eq -- Functor Traversable Applicative Monoid Monad
 -- import Data.List hiding filter  -- from Anthony
+--
+-- [ ] add command-line parsing
+-- [ ] pandoc integration?
+--
+-- 2018-10-12
+-- execution_count redundancy at the cell and output level
+
+
