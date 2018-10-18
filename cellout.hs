@@ -415,6 +415,18 @@ main = do
 -- [ ] pandoc integration?
 --
 -- 2018-10-12
--- execution_count redundancy at the cell and output level
+-- [ ] upstream: execution_count redundancy at the cell and output level
+--
+-- 2018-10-17
+-- [ ] separate input and output in different lists /  storage structures
+-- what was my thought about each cell having its own ID - oh, right, storing
+-- all of the text up front so you can edit it that way and thne rejoin/resplit
+-- it up (but allows for saving of output)
+-- 
+-- *Main Data.Aeson.Types> :set -XOverloadedStrings
+-- > decode "{}"  :: Maybe Value
+-- Just (Object (fromList []))
+-- > decode "{\"a\":1}"  :: Maybe Value
+-- Just (Object (fromList [("a",Number 1.0)]))
 
 
