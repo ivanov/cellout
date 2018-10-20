@@ -234,7 +234,10 @@ clearCellMetadata = fmap clearMetadata
 
 clearOutput :: Cell -> Cell
 clearOutput (CodeCell (CommonCellContent src md) _ _) = CodeCell (CommonCellContent src md) emptyOutput empty_execution_count
+clearOutput x = x
 
+clearOutputs :: Notebook -> Notebook
+clearOutputs =  cellsFilter (fmap clearOutput)
 
 mdBeforeCode :: Cell -> [Cell]
 mdBeforeCode (CodeCell x o i) =
@@ -325,7 +328,7 @@ writeNb file nb = LB.writeFile file (encode nb)
 stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
     input <- readFile inputFile
-    writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode) testNb)
+    writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode . clearOutputs) testNb)
     -- putStrLn $ decodeUtf8 . LB.unpack. encode $ (onlyNonEmpty testNb)
 
 main :: IO ()
@@ -337,8 +340,9 @@ main = do
     -- putStrLn $ showNb asMarkdown (onlyNonEmpty testNb)
     -- putStrLn $ T.unpack . decodeUtf8 . LB.toStrict . encode $ (onlyNonEmpty testNb)
     --let newNb = (onlyCell 3 testNb)
-    let newNb = testNb
-        in writeNb "C:\\bbg\\jlabremix\\tmp\\hi.ipynb"  newNb
+    --let newNb = testNb
+    --    --in writeNb "C:\\bbg\\jlabremix\\tmp\\hi.ipynb"  newNb
+    --    in writeNb "hi.ipynb"  newNb
     -- (toEncoding . source . common . (!! 3) . cells) testNb
     args <- getArgs
     case args of
