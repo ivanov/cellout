@@ -14,6 +14,8 @@ import qualified Data.HashMap.Lazy as HML
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
+import System.Environment (getArgs)
+
 data Notebook =
     Notebook
     { cells :: [ Cell ]
@@ -319,6 +321,13 @@ wordCount c = let s =  unlines . source' $  c
 writeNb :: FilePath -> Notebook -> IO ()
 writeNb file nb = LB.writeFile file (encode nb)
 
+
+stripOutputIO :: String -> String -> IO ()
+stripOutputIO inputFile outputFile = do
+    input <- readFile inputFile
+    writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode) testNb)
+    -- putStrLn $ decodeUtf8 . LB.unpack. encode $ (onlyNonEmpty testNb)
+
 main :: IO ()
 main = do
     -- putStr (show testNb)
@@ -331,6 +340,11 @@ main = do
     let newNb = testNb
         in writeNb "C:\\bbg\\jlabremix\\tmp\\hi.ipynb"  newNb
     -- (toEncoding . source . common . (!! 3) . cells) testNb
+    args <- getArgs
+    case args of
+        [input] -> stripOutputIO input "no_output.ipynb"
+        [input, output] -> stripOutputIO input output
+        _ -> putStrLn "please specify at least the input filename"
 
 
 
@@ -428,5 +442,8 @@ main = do
 -- Just (Object (fromList []))
 -- > decode "{\"a\":1}"  :: Maybe Value
 -- Just (Object (fromList [("a",Number 1.0)]))
+
+-- 2018-10-19
+-- [ ] strip output as the initial use case with IO
 
 
