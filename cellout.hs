@@ -37,15 +37,22 @@ data CommonCellContent =
 
 type MimeBundle = Map.Map String String -- 'text' should get re-keyd to 'data' on serialization
 
+data OutputStream
+    = Stdout [ String ]
+    | Stderr [ String ]
+    deriving (Show, Eq, Generic)
+
+instance FromJSON OutputStream
+instance ToJSON OutputStream
 
 -- TODO: output should be a list of mimebundles?
 data Output
     = OutputExecuteResult
-        { dat :: MimeBundle
+        { data_ :: MimeBundle -- data is a haskell keyword
         , execution_count :: Int
         , outputmetadata :: (Map.Map String String)
         }
-    | OuputStream [String]
+    | Stream OutputStream
     deriving (Show, Eq, Generic)
 
 data ExecutionCount = ExecutionCount (Maybe Int)
@@ -64,9 +71,9 @@ metaCorrector x =
     then "metadata"
     else x
 
-dat2data :: String -> String
-dat2data "dat" = "data"
-dat2data x = x
+dataKeywordFix :: String -> String
+dataKeywordFix "data_" = "data"
+dataKeywordFix x = x
 
 tag2output_type :: String -> String
 tag2output_type "tag" = "output_type"
@@ -120,7 +127,7 @@ instance ToJSON Output where
         -- sumEncoding = UntaggedValue,
         sumEncoding = TaggedObject "output_type" "contents",
         unwrapUnaryRecords = True,
-        fieldLabelModifier = metaCorrector . dat2data . tag2output_type,
+        fieldLabelModifier = metaCorrector . dataKeywordFix . tag2output_type,
         constructorTagModifier = \x -> if x == "OutputExecuteResult" then "execute_result" else x
         }
 
@@ -164,7 +171,7 @@ testNb = notebook
     , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
     , CodeCell ( CommonCellContent ["print ('hello')"]  mempty) (output1 "text/plain" "hello" 1 ) empty_execution_count
     , CodeCell ( CommonCellContent [] mempty) emptyOutput empty_execution_count
-    , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent [""] mempty) [Stream (Stdout ["yo output"])]  empty_execution_count
     , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
     , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
     , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
@@ -329,7 +336,12 @@ stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
     input <- readFile inputFile
     writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode . clearOutputs) testNb)
+    --LB.writeFile outputFile $ ( encode . clearOutputs ) testNb
+    LB.writeFile outputFile $ encode  testNb
     -- putStrLn $ decodeUtf8 . LB.unpack. encode $ (onlyNonEmpty testNb)
+
+nbAsJSONString :: Notebook -> String
+nbAsJSONString = T.unpack . decodeUtf8 . LB.toStrict . encode
 
 main :: IO ()
 main = do
@@ -416,10 +428,10 @@ main = do
 -- [ ] notebook
 --
 -- 2018-10-09
--- [ ] current serialization doesn't match nbformat:
+-- [x] current serialization doesn't match nbformat:
 --      Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb AttributeError('cell_type',)
 -- [ ] when you have more than one execute_count output in a code cell, which one should be shown? all?
--- [ ] Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb UnboundLocalError("local variable 'newcell' referenced before assignment",)
+-- [x] Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb UnboundLocalError("local variable 'newcell' referenced before assignment",)
 -- [ ] probably remove the nbformat major/minor from the Notebook model and
 --     have some mixin that does that at the end (most filters won't car about nbformat version)
 --
@@ -440,7 +452,7 @@ main = do
 -- what was my thought about each cell having its own ID - oh, right, storing
 -- all of the text up front so you can edit it that way and thne rejoin/resplit
 -- it up (but allows for saving of output)
--- 
+--
 -- *Main Data.Aeson.Types> :set -XOverloadedStrings
 -- > decode "{}"  :: Maybe Value
 -- Just (Object (fromList []))
@@ -448,6 +460,16 @@ main = do
 -- Just (Object (fromList [("a",Number 1.0)]))
 
 -- 2018-10-19
--- [ ] strip output as the initial use case with IO
+-- [x] strip output as the initial use case with IO
 
+-- 2018-10-22
+-- [ ] readNotebook >>> writeNotebook >>> ( reformat using nbconvert?) >>> diff with original
+--     ^-- is to gauge what we're dropping on the floor right now, so we
+--         eventually get to dropping nothing at all
+-- [ ] add flags for --strip-output, for example, do do noop cellout
+--
+-- # roundtrip gaps
+-- [ ] Execution count missing from In[ ] section
+-- [ ] output stream text missing
+-- [ ] encoding conversion for streams
 
