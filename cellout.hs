@@ -180,6 +180,7 @@ testNb = notebook
     mempty -- should I be using mempty here?
 
 oneNb = onlyCell 3 testNb
+
 common :: Cell -> CommonCellContent
 common (MarkdownCell c) = c
 common (CodeCell c _ _) = c
@@ -316,6 +317,8 @@ reversed :: Notebook -> String
 reversed
     = contentFiltering reverse
 
+{- Return a notebook containing only the cell at position `i`
+ -}
 onlyCell ::  Int -> Notebook -> Notebook
 onlyCell i (Notebook c n f m) =  Notebook [ c !! i ] n f m
 
