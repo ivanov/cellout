@@ -436,7 +436,7 @@ main = do
 -- [ ] when you have more than one execute_count output in a code cell, which one should be shown? all?
 -- [x] Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb UnboundLocalError("local variable 'newcell' referenced before assignment",)
 -- [ ] probably remove the nbformat major/minor from the Notebook model and
---     have some mixin that does that at the end (most filters won't car about nbformat version)
+--     have some mixin that does that at the end (most filters won't care about nbformat version)
 --
 -- from Anthony:
 --     multiparameter type classes --
@@ -453,7 +453,7 @@ main = do
 -- 2018-10-17
 -- [ ] separate input and output in different lists /  storage structures
 -- what was my thought about each cell having its own ID - oh, right, storing
--- all of the text up front so you can edit it that way and thne rejoin/resplit
+-- all of the text up front so you can edit it that way and then rejoin/resplit
 -- it up (but allows for saving of output)
 --
 -- *Main Data.Aeson.Types> :set -XOverloadedStrings
@@ -475,4 +475,8 @@ main = do
 -- [ ] Execution count missing from In[ ] section
 -- [ ] output stream text missing
 -- [ ] encoding conversion for streams
-
+--
+-- 2018-11-02
+-- [ ] --readonly / --read-only flags (no output - useful for )
+-- [ ] --summary (number of cells, broken down by type, how many executed)
+-- [ ] do we need some sort of executor abstraction down the line?

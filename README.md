@@ -8,19 +8,22 @@ between different kinds of notebook formats. An additional goal of `cellout` is
 to provide `nbconvert` functionality without a python runtime dependency.
 
 Cellout was written to provide a solid foundation for experimenting with
-notebook file formatsn. Integrating well with pandoc by providing readers has
-been one of the motivating factors.
+notebook file formats. Integrating well with [pandoc][pandoc] by providing
+readers has been one of the motivating factors.
 
 The haskell library contains a well-typed Jupyter notebook document
 representation, as well as facilities for operating on notebooks (such as
-filtering output, removing metadata, concatenating multple notebooks).
+filtering output, removing metadata, concatenating multiple notebooks).
 
+*Note: `cellout` is under active development, some of the behaviors outline in the
+rest of this document are how  it **should** work, and does not
+necessarily reflect what is implemented right now.*
 
 ## Examples
 
 ```
 $ cellout --clear-output Untitled314.ipynb
-$
+$ █
 ```
 
 When there are no errors to report, cellout stays quiet, though you can pass the
@@ -30,12 +33,12 @@ When there are no errors to report, cellout stays quiet, though you can pass the
 ```
 $ cellout --clear-output --verbose Untitled314.ipynb
 Wrote Untitled314.ipynb
-$
+$ █
 ```
 
 ## Why cellout?
 
-Personal context. I am writing cellout in part to have a mechanism for exploring
+**Personal context:** I am writing cellout in part to have a mechanism for exploring
 future notebook formats that is not tied down to the JSON `.ipynb` format. From
 the beginning of nbconvert back in 2012, I've expressed the opinion in the past
 that we should integrate with pandoc as much as we can and not have nbconvert do
@@ -110,6 +113,59 @@ outputs" while operating on the pandoc AST.
 - [ ] comment percent-percent format used by [spyder](https://docs.spyder-ide.org/editor.html#defining-code-cells)
 - [ ] jupytext's extensions to the [percent format](https://github.com/mwouts/jupytext#the-percent-format)
 - [ ] [ipymd](https://github.com/rossant/ipymd)
+- [ ] folder  ("manila folder")
+- [ ] zip-file ("manila envelope")
+
+
+## Comparing to `nbconvert`
+
+**Similarities**
+
+- `--clear-output` flag
+
+- `--no-prompt` flag
+
+- Invoking `cellout` and `nbconvert` without an input file will print the usage
+  information, instead of attempting to read from stdin as `pandoc` does.
+
+- Invoking `cellout` without an output file and without an output format,
+  or with an output format that matches the input file will make changes
+  in-place. (This is provided by the `--inplace` flag of `nbconvert`)
+
+
+**Differences**
+
+- Whereas `nbconvert` will default to converting to html, `cellout` keeps the
+  same file format, which means that at most, invoking `cellout filename`
+  without any other flags will read in the filename and write it back out,
+  possibly with slightly different formatting, but without changing any data.
+
+- Whereas `nbconvert` reads jupyter configuration files at startup, there are no
+  configuration files for `cellout` - all options are specified at the command
+  line.
+
+- `--execute` flag is not supported at this time.
+
+
+## Comparing to `pandoc`
+
+**Similarities**
+
+- Like `pandoc`, there are no configuration files for `cellout` - all options
+  are specified at the command line.
+
+
+**Differences**
+
+- When invoked without an input file, `pandoc`, like the venerable UNIX `cat`
+  command will await input from stdin. While this is a completely legitimate
+  default behavior, at this time, I think it would be best to just print the
+  usage information, which is what `cellout` does.
+
+- Similarly, unlike `pandoc` which writes to stdout when the output file is not
+  specified, the result for `cellout` is written to a file. If the output format
+  does not differ from the input format, the change is made to the file
+  in-place.
 
 ## Related projects
 
@@ -118,7 +174,10 @@ outputs" while operating on the pandoc AST.
 > *Primarily, the `nbconvert` tool allows you to convert a Jupyter `.ipynb`
 > notebook document file into another static format including HTML, LaTeX, PDF,
 > Markdown, reStructuredText, and more. nbconvert can also add productivity to
-> your workflow when used to execute notebooks programmatically.*
+> your workflow when used to execute notebooks programatically.*
+
+[pandoc][pandoc] - a universal document converter, pandoc can read and write a
+bunch of different formats including rst, html, LaTeX, docx, epub, and pdf.
 
 [ipyaml](https://github.com/prabhuramachandran/ipyaml) - IPython Notebooks as
 YAML.
@@ -139,4 +198,4 @@ Jupyter Notebooks.
 has a format of converting python scripts to notebooks and to Restructured Text
 (`.rst`) with execution results included.
 
-
+[pandoc]: https://pandoc.org "Pandoc: a universal document converter"

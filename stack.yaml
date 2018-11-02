@@ -40,8 +40,8 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - aeson-1.4.1.0
-- attoparsec-0.13.2.2
-- parsec-3.1.13.0
+# - attoparsec-0.13.2.2
+# - parsec-3.1.13.0
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
