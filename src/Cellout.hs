@@ -1,5 +1,48 @@
 {-# LANGUAGE DeriveGeneric #-}
 -- {-# LANGUAGE OverloadedStrings #-} -- would get rid of T.pack
+module Cellout
+    ( Notebook
+    , notebook
+    , metaCorrector
+    , dataKeywordFix
+    , unobject
+    , merge
+    , emptyOutput
+    , output1
+    , testNb
+    , common
+    , asCode
+    , asMarkdown
+    , isMarkdown
+    , isCode
+    , isEmpty
+    , onlyMarkdown
+    , onlyCode
+    , clearEmpty
+    , clearMetadata
+    , clearCellMetadata
+    , clearOutput
+    , clearOutputs
+    , mdBeforeCode
+    , mdBeforeEachCodeDumb
+    , contentFiltering
+    , cellMap
+    , cellsFilter
+    , nbFilter
+    , clearNbMetadata
+    , printCells
+    , showNb
+    , onlyMarkdownContent
+    , onlyCodeContent
+    , onlyNonEmpty
+    , insertMd
+    , reversed
+    , onlyCell
+    , wordCount
+    , writeNb
+    , stripOutputIO
+    , nbAsJSONString
+    ) where
 
 import Control.Arrow -- for >>>
 import Data.Aeson
@@ -198,7 +241,7 @@ asCode cell =  case cell of
 -- TODO: same as markdown_indicator above, we need a code_indicator below for
 -- language specific syntax highlighting for the people who want that sort of
 -- thing
-asMarkdown:: Cell -> String
+asMarkdown :: Cell -> String
 asMarkdown cell =  case cell of
     MarkdownCell c -> unlines ( source c) ++ "\n"
     -- -- At some point I thought I might need to add extra new lines between
