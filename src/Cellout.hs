@@ -78,7 +78,7 @@ data CommonCellContent =
     } deriving (Show, Generic)
 
 
-type MimeBundle = Map.Map String String -- 'text' should get re-keyd to 'data' on serialization
+type MimeBundle = Map.Map String [String] -- 'text' should get re-keyd to 'data' on serialization
 
 data OutputStream
     = Stdout [ String ]
@@ -199,7 +199,7 @@ instance ToJSON ExecutionCount where
 emptyOutput :: [Output]
 emptyOutput = []
 
-output1 :: String -> String -> Int -> [Output]
+output1 :: String -> [String] -> Int -> [Output]
 output1 k v i = [(OutputExecuteResult $ Map.singleton k v) i mempty]
 
 -- let's think about this a bit, I'll be able to case-switch on cell type if I
@@ -212,12 +212,12 @@ testNb = notebook
     [ MarkdownCell $ CommonCellContent ["# In the Beginning\n"] mempty
     , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
     , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
-    , CodeCell ( CommonCellContent ["print ('hello')"]  mempty) (output1 "text/plain" "hello" 1 ) empty_execution_count
-    , CodeCell ( CommonCellContent [] mempty) emptyOutput empty_execution_count
-    , CodeCell ( CommonCellContent [""] mempty) [Stream (Stdout ["yo output"])]  empty_execution_count
-    , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
-    , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
-    , CodeCell ( CommonCellContent [""] mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent ["print ('hello')"]  mempty) (output1 "text/plain" ["hello"] 1 ) empty_execution_count
+    , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent mempty mempty) [Stream (Stdout ["yo output"])]  empty_execution_count
+    , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
+    , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
     , CodeCell ( CommonCellContent ["print ('goodbye')\n"] mempty) emptyOutput empty_execution_count
     ]
     mempty -- should I be using mempty here?
@@ -262,8 +262,8 @@ isCode _ = False
 
 -- TODO not 100% sure what empty cells actually show up as.
 isEmpty ::  Cell -> Bool
-isEmpty (MarkdownCell c) = source c == [""]
-isEmpty (CodeCell c o _) = source c == [""] && o == emptyOutput
+isEmpty (MarkdownCell c) = source c == []
+isEmpty (CodeCell c o _) = source c == [] && o == emptyOutput
 
 ---- let's do some quick filtering on cell type...
 onlyMarkdown :: [Cell] -> [Cell]
@@ -382,8 +382,8 @@ stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
     input <- readFile inputFile
     writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode . clearOutputs) testNb)
-    --LB.writeFile outputFile $ ( encode . clearOutputs ) testNb
-    LB.writeFile outputFile $ encode  testNb
+    LB.writeFile outputFile $ ( encode . clearOutputs ) testNb
+    -- LB.writeFile outputFile $ (encode)  testNb
     -- putStrLn $ decodeUtf8 . LB.unpack. encode $ (onlyNonEmpty testNb)
 
 nbAsJSONString :: Notebook -> String
@@ -523,3 +523,7 @@ main = do
 -- [ ] --readonly / --read-only flags (no output - useful for )
 -- [ ] --summary (number of cells, broken down by type, how many executed)
 -- [ ] do we need some sort of executor abstraction down the line?
+--
+-- 2018-11-06
+-- [ ] should we convert "source": [ "" ] to just "source": []?
+-- [x] match up to reordered keys and whitespace for cleared output

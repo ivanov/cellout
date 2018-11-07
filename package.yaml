@@ -36,6 +36,8 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - cellout
+    - aeson
+    - containers
 
 tests:
   cellout-test:
