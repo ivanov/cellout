@@ -22,12 +22,16 @@ description:         Please see the README on GitHub at <https://github.com/ivan
 dependencies:
 - base >= 4.7 && < 5
 - aeson >= 1.4.1.0
+- containers >= 0.6.0.1
+- text
+- bytestring
+- unordered-containers
 
 library:
   source-dirs: src
 
 executables:
-  cellout-exe:
+  cellout:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
