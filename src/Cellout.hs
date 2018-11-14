@@ -175,24 +175,33 @@ instance ToJSON Output where
         }
 
 
-instance FromJSON ExecutionCount
+instance FromJSON ExecutionCount where
+    -- parseJSON = genericParseJSON defaultOptions{
+    --     sumEncoding = ObjectWithSingleField,
+    --     tagSingleConstructors = True,
+    --     constructorTagModifier = \x -> if x == "execution_count" then "ExecutionCount" else x
+    -- }
+    -- -- ARGH, so frustrating that I can't figure out how to derive this and keep things generic
+    parseJSON (Object v) = ExecutionCount <$> v .: (T.pack "execution_count")
+
 instance ToJSON ExecutionCount where
     toEncoding = genericToEncoding defaultOptions{
-        --sumEncoding = TaggedObject "execution_count" "contents",
         sumEncoding = ObjectWithSingleField,
-        unwrapUnaryRecords = True,
-        fieldLabelModifier = metaCorrector,
         tagSingleConstructors = True,
         constructorTagModifier = \x -> if x == "ExecutionCount" then "execution_count" else x
         }
     toJSON = genericToJSON defaultOptions{
-        --sumEncoding = TaggedObject "execution_count" "contents",
         sumEncoding = ObjectWithSingleField,
-        unwrapUnaryRecords = True,
-        fieldLabelModifier = metaCorrector,
         tagSingleConstructors = True,
         constructorTagModifier = \x -> if x == "ExecutionCount" then "execution_count" else x
         }
+
+
+ecj :: Value
+ecj = toJSON (ExecutionCount (Just 1))
+
+ec :: Result ExecutionCount
+ec = fromJSON  ecj
 
 -- map
 
@@ -212,7 +221,7 @@ testNb = notebook
     [ MarkdownCell $ CommonCellContent ["# In the Beginning\n"] mempty
     , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
     , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
-    , CodeCell ( CommonCellContent ["print ('hello')"]  mempty) (output1 "text/plain" ["hello"] 1 ) empty_execution_count
+    , CodeCell ( CommonCellContent ["print ('hello')"]  mempty) (output1 "text/plain" ["hello"] 1 ) (ExecutionCount (Just 2))
     , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
     , CodeCell ( CommonCellContent mempty mempty) [Stream (Stdout ["yo output"])]  empty_execution_count
     , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
@@ -380,11 +389,15 @@ writeNb file nb = LB.writeFile file (encode nb)
 
 stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
-    input <- readFile inputFile
-    writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode . clearOutputs) testNb)
-    LB.writeFile outputFile $ ( encode . clearOutputs ) testNb
-    -- LB.writeFile outputFile $ (encode)  testNb
-    -- putStrLn $ decodeUtf8 . LB.unpack. encode $ (onlyNonEmpty testNb)
+    --input <- LB.readFile inputFile
+    --case (eitherDecode input) :: (Either String Notebook) of
+    --    Left err -> putStrLn err
+    --    Right nb -> LB.writeFile outputFile $ encode nb
+    --        --
+    --        -- writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode . clearOutputs) testNb)
+    --        -- LB.writeFile outputFile $ ( encode . clearOutputs ) testNb
+    LB.writeFile outputFile $ (encode)  testNb
+            -- putStrLn $ decodeUtf8 . LB.unpack. encode $ (onlyNonEmpty testNb)
 
 nbAsJSONString :: Notebook -> String
 nbAsJSONString = T.unpack . decodeUtf8 . LB.toStrict . encode
