@@ -62,13 +62,13 @@ import System.Environment (getArgs)
 data Notebook =
     Notebook
     { cells :: [ Cell ]
-    , nbmetadata :: Map.Map String String -- should be possible to do nested StringOrMap
+    , nbmetadata :: Map.Map String Value -- should be possible to do nested StringOrMap
     , nbformat :: Int
     , nbformat_minor :: Int
     } deriving (Show, Generic)
 
 -- Notebook4 :: [Cell] -> (Map.Map String Sting)
-notebook :: [Cell] -> Map.Map String String ->  Notebook
+notebook :: [Cell] -> Map.Map String Value ->  Notebook
 notebook c m  = Notebook c m 4 2
 
 data CommonCellContent =
@@ -122,7 +122,8 @@ tag2output_type :: String -> String
 tag2output_type "tag" = "output_type"
 tag2output_type x = x
 
-instance FromJSON Notebook
+instance FromJSON Notebook where
+    parseJSON = genericParseJSON  defaultOptions{ fieldLabelModifier = metaCorrector }
 instance ToJSON Notebook where
     toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
 
@@ -132,12 +133,18 @@ outputs = T.pack "outputs"
 
 empty_execution_count = ExecutionCount Nothing
 
-instance FromJSON Cell
+--instance FromJSON Cell --where
+instance FromJSON Cell where
+    --  parseJSON = genericParseJSON defaultOptions  {
+    --    }
+    parseJSON (Object v) =  MarkdownCell <$> (parseJSON (Object v) )
+
 instance ToJSON Cell where
     -- toJSON (MarkdownCell c) = object $ [ cell_type .= "markdown" ]
     -- toJSON (CodeCell c o i) = object $ [ cell_type .= "code" ]
     toJSON (MarkdownCell c) = Object $ HML.insert cell_type (toJSON "markdown") (unobject $ toJSON c)
     -- TODO: change this to genericToEncoding with new options
+    -- TODO: I should be able to use <> to concatenate the hashmaps here, no?
     toJSON (CodeCell c o i) = merge (object [ cell_type .= "code", outputs .= o])
                             $ merge (toJSON c) (toJSON i)
 
@@ -152,7 +159,8 @@ unobject _ = HML.empty
 merge :: Value -> Value -> Value
 merge (Object x) (Object y) = Object $ HML.union x y
 
-instance FromJSON CommonCellContent
+instance FromJSON CommonCellContent where
+    parseJSON = genericParseJSON  defaultOptions{ fieldLabelModifier = metaCorrector }
 instance ToJSON CommonCellContent where
     -- toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
     toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
@@ -389,14 +397,14 @@ writeNb file nb = LB.writeFile file (encode nb)
 
 stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
-    --input <- LB.readFile inputFile
-    --case (eitherDecode input) :: (Either String Notebook) of
-    --    Left err -> putStrLn err
-    --    Right nb -> LB.writeFile outputFile $ encode nb
-    --        --
-    --        -- writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode . clearOutputs) testNb)
-    --        -- LB.writeFile outputFile $ ( encode . clearOutputs ) testNb
-    LB.writeFile outputFile $ (encode)  testNb
+    input <- LB.readFile inputFile
+    case (eitherDecode input) :: (Either String Notebook) of
+        Left err -> putStrLn err
+        Right nb -> LB.writeFile outputFile $ encode nb
+            --
+            -- writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode . clearOutputs) testNb)
+            -- LB.writeFile outputFile $ ( encode . clearOutputs ) testNb
+            --LB.writeFile outputFile $ (encode)  nb
             -- putStrLn $ decodeUtf8 . LB.unpack. encode $ (onlyNonEmpty testNb)
 
 nbAsJSONString :: Notebook -> String
@@ -419,7 +427,8 @@ main = do
     case args of
         [input] -> stripOutputIO input "no_output.ipynb"
         [input, output] -> stripOutputIO input output
-        _ -> putStrLn "please specify at least the input filename"
+        _ -> stripOutputIO "test/data/hi.ipynb" "test/hi.cellout.ipynb"
+        --_ -> putStrLn "please specify at least the input filename"
 
 
 
