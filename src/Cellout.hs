@@ -80,22 +80,30 @@ data CommonCellContent =
 
 type MimeBundle = Map.Map String [String] -- 'text' should get re-keyd to 'data' on serialization
 
-data OutputStream
-    = Stdout [ String ]
-    | Stderr [ String ]
+
+toLower = (T.unpack . T.toLower . T.pack)
+
+data StdSomething = Stdout | Stderr
     deriving (Show, Eq, Generic)
 
-instance FromJSON OutputStream
-instance ToJSON OutputStream
+instance ToJSON StdSomething where
+    toJSON = genericToJSON defaultOptions{
+        constructorTagModifier = toLower
+    }
+
+instance FromJSON StdSomething
 
 -- TODO: output should be a list of mimebundles?
+-- TODO: we take advantage of the default TaggedObject JSON-ization of records
+-- into the object to minimize
 data Output
-    = OutputExecuteResult
-        { data_ :: MimeBundle -- data is a haskell keyword
+    = ExecuteResult { data_ :: MimeBundle -- data is a haskell keyword
         , execution_count :: Int
         , outputmetadata :: (Map.Map String String)
         }
-    | Stream OutputStream
+    | Stream { name :: StdSomething
+        , text :: [String]
+        }
     deriving (Show, Eq, Generic)
 
 data ExecutionCount = ExecutionCount (Maybe Int)
@@ -118,10 +126,6 @@ dataKeywordFix :: String -> String
 dataKeywordFix "data_" = "data"
 dataKeywordFix x = x
 
-tag2output_type :: String -> String
-tag2output_type "tag" = "output_type"
-tag2output_type x = x
-
 instance FromJSON Notebook where
     parseJSON = genericParseJSON  defaultOptions{ fieldLabelModifier = metaCorrector }
 instance ToJSON Notebook where
@@ -137,7 +141,12 @@ empty_execution_count = ExecutionCount Nothing
 instance FromJSON Cell where
     --  parseJSON = genericParseJSON defaultOptions  {
     --    }
-    parseJSON (Object v) =  MarkdownCell <$> (parseJSON (Object v) )
+    parseJSON (Object v) =  do
+        cell_type <- v .: T.pack "cell_type"
+        case cell_type of
+            "markdown" -> MarkdownCell <$> (parseJSON (Object v) )
+            "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (v .: T.pack "outputs") <*>  ((v .: T.pack "execution_count"))
+            -- "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (parseJSON (v .: T.pack "outputs")) <*>  ((v .: T.pack "execution_count"))
 
 instance ToJSON Cell where
     -- toJSON (MarkdownCell c) = object $ [ cell_type .= "markdown" ]
@@ -166,20 +175,32 @@ instance ToJSON CommonCellContent where
     toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
     toJSON = genericToJSON defaultOptions{ fieldLabelModifier = metaCorrector }
 
-instance FromJSON Output
+instance FromJSON Output --where
+    -- parseJSON = genericParseJSON defaultOptions{
+    --     sumEncoding = TaggedObject "output_type" "contents",
+    --     unwrapUnaryRecords = True,
+    --     fieldLabelModifier = metaCorrector . dataKeywordFix
+    --     constructorTagModifier = \x -> if x == "OutputExecuteResult" then "execute_result" else x
+    -- }
+    --parseJSON (Object v) = do
+    --    output_type <- v .:  T.pack "output_type"
+    --    case output_type of
+    --        "stream" -> do
+    --            name_ <- v .: T.pack "name"
+    --            case name of
+    --                "stdout" -> do
+    --                    text <- (v .: T.pack "text")
+    --                    Stream Stdout text
+    --        -- "execute_result" -> ExecuteResult <$> parseJSON (Object v)
+
 instance ToJSON Output where
-    toEncoding = genericToEncoding defaultOptions{
-        sumEncoding = UntaggedValue,
-        -- sumEncoding = ObjectWithSingleField,
-        unwrapUnaryRecords = True,
-        fieldLabelModifier = metaCorrector
-        }
     toJSON = genericToJSON defaultOptions{
         -- sumEncoding = UntaggedValue,
-        sumEncoding = TaggedObject "output_type" "contents",
+        sumEncoding = TaggedObject "output_type" "",
+        -- I want taggedflattened object, but instead rewrote  Output to have records
         unwrapUnaryRecords = True,
-        fieldLabelModifier = metaCorrector . dataKeywordFix . tag2output_type,
-        constructorTagModifier = \x -> if x == "OutputExecuteResult" then "execute_result" else x
+        fieldLabelModifier = metaCorrector . dataKeywordFix,
+        constructorTagModifier = \x -> if x == "ExecuteResult" then "execute_result" else (toLower x)
         }
 
 
@@ -216,8 +237,8 @@ ec = fromJSON  ecj
 emptyOutput :: [Output]
 emptyOutput = []
 
-output1 :: String -> [String] -> Int -> [Output]
-output1 k v i = [(OutputExecuteResult $ Map.singleton k v) i mempty]
+output1 :: String -> [String] -> Int -> Output
+output1 k v i = ExecuteResult (Map.singleton k v) i mempty
 
 -- let's think about this a bit, I'll be able to case-switch on cell type if I
 -- go with the above, but is that something I will want to do? I guess it makes
@@ -229,9 +250,9 @@ testNb = notebook
     [ MarkdownCell $ CommonCellContent ["# In the Beginning\n"] mempty
     , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
     , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
-    , CodeCell ( CommonCellContent ["print ('hello')"]  mempty) (output1 "text/plain" ["hello"] 1 ) (ExecutionCount (Just 2))
+    , CodeCell ( CommonCellContent ["print ('hello')\n", "'yo there'"]  mempty) [Stream Stdout ["hello\n"], output1 "text/plain" ["'yo there'"] 2 ] (ExecutionCount (Just 2))
     , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
-    , CodeCell ( CommonCellContent mempty mempty) [Stream (Stdout ["yo output"])]  empty_execution_count
+    , CodeCell ( CommonCellContent mempty mempty) [Stream Stdout ["yo output\n"]]  (ExecutionCount (Just 3))
     , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
     , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
     , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count
@@ -549,3 +570,8 @@ main = do
 -- 2018-11-06
 -- [ ] should we convert "source": [ "" ] to just "source": []?
 -- [x] match up to reordered keys and whitespace for cleared output
+--
+-- 2018-11-26
+-- [x] rework stream
+-- [ ] replicate newline behavior for multiple source strings?
+-- [ ] preserve notebook metadata
