@@ -91,7 +91,10 @@ instance ToJSON StdSomething where
         constructorTagModifier = toLower
     }
 
-instance FromJSON StdSomething
+instance FromJSON StdSomething where
+    parseJSON = genericParseJSON defaultOptions{
+        constructorTagModifier = toLower
+    }
 
 -- TODO: output should be a list of mimebundles?
 -- TODO: we take advantage of the default TaggedObject JSON-ization of records
@@ -145,7 +148,7 @@ instance FromJSON Cell where
         cell_type <- v .: T.pack "cell_type"
         case cell_type of
             "markdown" -> MarkdownCell <$> (parseJSON (Object v) )
-            "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (v .: T.pack "outputs") <*>  ((v .: T.pack "execution_count"))
+            "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (v .: T.pack "outputs") <*>  parseJSON (Object v)
             -- "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (parseJSON (v .: T.pack "outputs")) <*>  ((v .: T.pack "execution_count"))
 
 instance ToJSON Cell where
@@ -175,8 +178,14 @@ instance ToJSON CommonCellContent where
     toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
     toJSON = genericToJSON defaultOptions{ fieldLabelModifier = metaCorrector }
 
-instance FromJSON Output --where
-    -- parseJSON = genericParseJSON defaultOptions{
+instance FromJSON Output where
+    parseJSON = genericParseJSON defaultOptions{
+        sumEncoding = TaggedObject "output_type" "",
+        -- I want taggedflattened object, but instead rewrote  Output to have records
+        unwrapUnaryRecords = True,
+        fieldLabelModifier = metaCorrector . dataKeywordFix,
+        constructorTagModifier = \x -> if x == "ExecuteResult" then "execute_result" else (toLower x)
+        }
     --     sumEncoding = TaggedObject "output_type" "contents",
     --     unwrapUnaryRecords = True,
     --     fieldLabelModifier = metaCorrector . dataKeywordFix
@@ -211,7 +220,11 @@ instance FromJSON ExecutionCount where
     --     constructorTagModifier = \x -> if x == "execution_count" then "ExecutionCount" else x
     -- }
     -- -- ARGH, so frustrating that I can't figure out how to derive this and keep things generic
-    parseJSON (Object v) = ExecutionCount <$> v .: (T.pack "execution_count")
+    parseJSON (Object v) = ExecutionCount <$>  v .: T.pack "execution_count"
+    --parseJSON (Number n) = ExecutionCount <$> (Just n)
+    --parseJSON (Number n) =  ExecutionCount <$> (Just n)
+    --parseJSON (Number n) =  ExecutionCount <$> (Just toInteger(n))
+    --parseJSON (Number x) = fail ("No idea what this is: " ++ show(toBoundedInteger (Number x)))
 
 instance ToJSON ExecutionCount where
     toEncoding = genericToEncoding defaultOptions{
@@ -229,8 +242,14 @@ instance ToJSON ExecutionCount where
 ecj :: Value
 ecj = toJSON (ExecutionCount (Just 1))
 
+ecn :: Value
+ecn = toJSON (ExecutionCount Nothing)
+
 ec :: Result ExecutionCount
 ec = fromJSON  ecj
+
+ec2 :: Result ExecutionCount
+ec2 = fromJSON  ecn
 
 -- map
 
@@ -419,6 +438,7 @@ writeNb file nb = LB.writeFile file (encode nb)
 stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
     input <- LB.readFile inputFile
+    --LB.writeFile outputFile $ encode testNb
     case (eitherDecode input) :: (Either String Notebook) of
         Left err -> putStrLn err
         Right nb -> LB.writeFile outputFile $ encode nb
@@ -433,22 +453,12 @@ nbAsJSONString = T.unpack . decodeUtf8 . LB.toStrict . encode
 
 main :: IO ()
 main = do
-    -- putStr (show testNb)
-    -- putStrLn "%%% PRINT CELLS"
-    -- putStrLn $ printCells testNb
-    -- putStrLn $ showNb asCode testNb
-    -- putStrLn $ showNb asMarkdown (onlyNonEmpty testNb)
-    -- putStrLn $ T.unpack . decodeUtf8 . LB.toStrict . encode $ (onlyNonEmpty testNb)
-    --let newNb = (onlyCell 3 testNb)
-    --let newNb = testNb
-    --    --in writeNb "C:\\bbg\\jlabremix\\tmp\\hi.ipynb"  newNb
-    --    in writeNb "hi.ipynb"  newNb
     -- (toEncoding . source . common . (!! 3) . cells) testNb
     args <- getArgs
     case args of
         [input] -> stripOutputIO input "no_output.ipynb"
         [input, output] -> stripOutputIO input output
-        _ -> stripOutputIO "test/data/hi.ipynb" "test/hi.cellout.ipynb"
+        _ -> stripOutputIO "test/data/hi.nbconvert.ipynb" "test/hi.cellout.ipynb"
         --_ -> putStrLn "please specify at least the input filename"
 
 
@@ -575,3 +585,6 @@ main = do
 -- [x] rework stream
 -- [ ] replicate newline behavior for multiple source strings?
 -- [ ] preserve notebook metadata
+--
+-- 2018-11-27
+-- [ ] run `jq -S --indent 1` until I get the pretty printing figured out
