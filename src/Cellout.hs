@@ -65,7 +65,7 @@ data Notebook =
     , nbmetadata :: Map.Map String Value -- should be possible to do nested StringOrMap
     , nbformat :: Int
     , nbformat_minor :: Int
-    } deriving (Show, Generic)
+    } deriving (Show, Generic, Eq)
 
 -- Notebook4 :: [Cell] -> (Map.Map String Sting)
 notebook :: [Cell] -> Map.Map String Value ->  Notebook
@@ -75,7 +75,7 @@ data CommonCellContent =
     CommonCellContent
     { source :: [String]
     , cellmetadata :: Map.Map String String -- same as nested comment above
-    } deriving (Show, Generic)
+    } deriving (Show, Generic, Eq)
 
 
 type MimeBundle = Map.Map String [String] -- 'text' should get re-keyd to 'data' on serialization
@@ -116,7 +116,7 @@ data Cell
     = MarkdownCell CommonCellContent
     | CodeCell  CommonCellContent [Output] ExecutionCount
     | RawCell CommonCellContent
-    deriving (Show, Generic)
+    deriving (Show, Generic, Eq)
 
 
 metaCorrector  :: String -> String
