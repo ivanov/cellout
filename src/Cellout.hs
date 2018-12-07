@@ -133,6 +133,7 @@ instance FromJSON Notebook where
     parseJSON = genericParseJSON  defaultOptions{ fieldLabelModifier = metaCorrector }
 instance ToJSON Notebook where
     toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
+    toJSON = genericToJSON defaultOptions{ fieldLabelModifier = metaCorrector }
 
 
 cell_type = T.pack "cell_type"
@@ -278,6 +279,12 @@ testNb = notebook
     , CodeCell ( CommonCellContent ["print ('goodbye')\n"] mempty) emptyOutput empty_execution_count
     ]
     mempty -- should I be using mempty here?
+
+trivialNb :: Notebook
+trivialNb = notebook mempty mempty
+
+roundtrip :: Notebook -> Result Notebook
+roundtrip = fromJSON . toJSON
 
 oneNb = onlyCell 3 testNb
 
