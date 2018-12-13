@@ -42,6 +42,11 @@ module Cellout
     , writeNb
     , stripOutputIO
     , nbAsJSONString
+    , StdSomething (Stderr, Stdout)
+    , CommonCellContent
+    , Output
+    , ExecutionCount (ExecutionCount)
+    , Cell ( MarkdownCell, CodeCell, RawCell)
     ) where
 
 import Control.Arrow -- for >>>
