@@ -55,11 +55,11 @@ short little notebooks, but in practice it has meant that no one writes long
 notebooks, and it's a bummer that there's effectively a cap on how many plots
 you pack into one.
 
-At the last Project Jupyter all hands week-long meeting back in May we discussed
-different requirements, trade-offs, features, limitations and pain points for
-possible future versions of the notebook document format. So there are several
-ideas that people have for addressing particular kinds of uses cases where
-`.ipynb` file limitations end up a bottleneck.
+At the last Project Jupyter all hands week-long meeting back in May 2018, we
+discussed different requirements, trade-offs, features, limitations and pain
+points for possible future versions of the notebook document format. So there
+are several ideas that people have for addressing particular kinds of uses cases
+where `.ipynb` file limitations end up a bottleneck.
 
 As a Haskell library, cellout provides a well-defined in-memory representation
 of a notebook and can be used to convert and translate between these future
