@@ -46,6 +46,7 @@ module Cellout
 
 import Control.Arrow -- for >>>
 import Data.Aeson
+import Data.Aeson.Encode.Pretty
 import Data.List
 import Data.Set (Set, empty)
 import Data.Text.Encoding
@@ -438,8 +439,11 @@ wordCount c = let s =  unlines . source' $  c
   in
     (length (lines s), length (words s), length s)
 
+encode' :: ToJSON a => a -> LB.ByteString
+encode' = encodePretty' defConfig{confIndent=Spaces 1, confCompare=compare}
+
 writeNb :: FilePath -> Notebook -> IO ()
-writeNb file nb = LB.writeFile file (encode nb)
+writeNb file nb = LB.writeFile file (encode' nb)
 
 
 stripOutputIO :: String -> String -> IO ()
@@ -448,7 +452,7 @@ stripOutputIO inputFile outputFile = do
     --LB.writeFile outputFile $ encode testNb
     case (eitherDecode input) :: (Either String Notebook) of
         Left err -> putStrLn err
-        Right nb -> LB.writeFile outputFile $ encode nb
+        Right nb -> writeNb outputFile nb
             --
             -- writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode . clearOutputs) testNb)
             -- LB.writeFile outputFile $ ( encode . clearOutputs ) testNb
