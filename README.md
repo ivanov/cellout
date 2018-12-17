@@ -36,6 +36,18 @@ Wrote Untitled314.ipynb
 $ █
 ```
 
+A shortcut for the `--verbose` flag is just `-v` and you can add it multiple
+times to get higher levels of verbosity (more and more details).
+
+```
+$ cellout --clear-output -vvv  Untitled314.ipynb
+Options {input = "Untitled314.ipynb", clearOutput = False, clearPrompt = False, outputFilename = "", outputType = "notebook", verbosity = 3}
+Reading Untitled314.ipynb
+Notebook contains 7 cells (3 code and 4 markdown)
+Wrote Untitled314.ipynb
+$ █
+```
+
 ## Why cellout?
 
 **Personal context:** I am writing cellout in part to have a mechanism for exploring

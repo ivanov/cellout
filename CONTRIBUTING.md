@@ -64,14 +64,15 @@ we're working with, to see the compiler errors and try out our new functions
 interactively after we succeed in compiling.
 
 ```
-:load src\Lib.hS
+:load src\Cellout.hs
 ```
 
 If we haven't broken anything, we'll get a message like this:
 
 ```
-[1 of 1] Compiling Lib              ( src\Lib.hs, interpreted )
+[1 of 1] Compiling Cellout              ( src\Cellout.hs, interpreted )
 Ok, one module loaded.
+*Cellout>
 ```
 
 Otherwise, we'll get compiler error message. Either way, as we edit that file,
@@ -87,3 +88,20 @@ information. and try to use some of these functions interactively.
 
 Something that might come in handy is a sample in-memory representation of a
 notebook. We have a few of those in the test/sample.hs folder.
+
+You can also read one while you're in ghci:
+
+```
+x <- readNb "test\\data\\hi.ipynb"
+```
+
+How did this work? Let's take a look at the type of `readNb`
+
+```
+:t readNb
+readNb :: FilePath -> IO (Either String Notebook))
+```
+
+So `readNB` is a function that takes a FilePath, and returns an IO wrapped
+result of either a successfull reading of a notebook, or a String error message
+when trying to read it.

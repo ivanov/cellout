@@ -445,6 +445,11 @@ encode' = encodePretty' defConfig{confIndent=Spaces 1, confCompare=compare}
 writeNb :: FilePath -> Notebook -> IO ()
 writeNb file nb = LB.writeFile file (encode' nb)
 
+readNb :: FilePath -> IO (Either String Notebook)
+readNb f = do
+    input <- LB.readFile f
+    return (eitherDecode input)
+
 
 stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
