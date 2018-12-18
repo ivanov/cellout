@@ -78,7 +78,7 @@ main = do
 
     where
         p :: ParserPrefs
-        p = prefs showHelpOnEmpty
+        p = prefs (showHelpOnEmpty <> disambiguate)
         optsParser :: ParserInfo Opts
         optsParser =
             info
@@ -104,7 +104,7 @@ main = do
                 (short 'o' <> long "output" <> metavar "RESULT" <> value "" <>
                 help "Filename for the resulting notebook (defaults to writing in place)")
             <*> strOption
-                (long "to" <> metavar "OUTPUT_TYPE" <> value "notebook" <> help ("format for the result, on of " ++ show supported_outputs))
+                (long "to" <> metavar "OUTPUT_TYPE" <> value "notebook" <> help ("format for the result, one of " ++ show supported_outputs))
             <*> (length <$> many (flag' () (long "verbose" <> short 'v' <> help "Print debugging messages. Multiple -v options increase the verbosity, up to a maximum of 5.")))
 
 
