@@ -39,7 +39,10 @@ module Cellout
     , reversed
     , onlyCell
     , wordCount
+    , readNb
+    , readNb'
     , writeNb
+    , collectInfo
     , stripOutputIO
     , nbAsJSONString
     ) where
@@ -151,6 +154,7 @@ instance FromJSON Cell where
         case cell_type of
             "markdown" -> MarkdownCell <$> (parseJSON (Object v) )
             "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (v .: T.pack "outputs") <*>  parseJSON (Object v)
+            _ ->  fail "unrecognized cell type"
             -- "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (parseJSON (v .: T.pack "outputs")) <*>  ((v .: T.pack "execution_count"))
 
 instance ToJSON Cell where
@@ -450,6 +454,28 @@ readNb f = do
     input <- LB.readFile f
     return (eitherDecode input)
 
+readNb' :: FilePath -> IO (Maybe Notebook)
+readNb' f = do
+    input <- LB.readFile f
+    return (decode input)
+
+tupleSum :: (Int, Int, Int) -> (Int, Int, Int) -> (Int, Int, Int)
+tupleSum (a, b, c) (x, y, z) = (a+x, b+y, c+z)
+
+{- returns a tuple of (Code, Markdow, Raw) cells counts -}
+cellCount :: Cell -> (Int, Int, Int) -> (Int, Int, Int)
+cellCount (CodeCell _ _ _) (x, y, z) = (x+1, y, z)
+cellCount (MarkdownCell _) (x, y, z) = (x, y+1, z)
+cellCount (RawCell _) (x, y, z) = (x, y, z+1)
+
+{- returns a tuple of (Code, Markdow, Raw) cells counts -}
+countCellsByType :: [Cell] -> (Int, Int, Int)
+countCellsByType cells = foldr cellCount (0,0,0) cells
+
+collectInfo :: Notebook -> String
+collectInfo nb = let (code, md, raw) = countCellsByType (cells nb)
+    in
+        show (code + md + raw) ++ " cells, (" ++ show code ++ " code, " ++ show md ++ " markdown)"
 
 stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
@@ -600,7 +626,10 @@ main = do
 -- 2018-11-26
 -- [x] rework stream
 -- [ ] replicate newline behavior for multiple source strings?
--- [ ] preserve notebook metadata
+-- [x] preserve notebook metadata
 --
 -- 2018-11-27
--- [ ] run `jq -S --indent 1` until I get the pretty printing figured out
+-- [x] run `jq -S --indent 1` until I get the pretty printing figured out
+--
+-- 2018-12-17
+-- [ ] better error message when failing to read notebook
