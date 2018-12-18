@@ -2,6 +2,7 @@
 -- {-# LANGUAGE OverloadedStrings #-} -- would get rid of T.pack
 module Cellout
     ( Notebook
+    , Cell
     , notebook
     , metaCorrector
     , dataKeywordFix
@@ -23,6 +24,7 @@ module Cellout
     , clearCellMetadata
     , clearOutput
     , clearOutputs
+    , clearPrompt
     , mdBeforeCode
     , mdBeforeEachCodeDumb
     , contentFiltering
@@ -352,12 +354,18 @@ clearMetadata (RawCell (CommonCellContent src _)) = RawCell (CommonCellContent s
 clearCellMetadata :: [Cell] -> [Cell]
 clearCellMetadata = fmap clearMetadata
 
+{- NB: clearOutput clears both the output and resets the execution count -}
 clearOutput :: Cell -> Cell
 clearOutput (CodeCell (CommonCellContent src md) _ _) = CodeCell (CommonCellContent src md) emptyOutput empty_execution_count
 clearOutput x = x
 
 clearOutputs :: Notebook -> Notebook
 clearOutputs =  cellsFilter (fmap clearOutput)
+
+{- NB: clearOutput clears both the output and resets the execution count -}
+clearPrompt :: Cell -> Cell
+clearPrompt (CodeCell (CommonCellContent src md) o _) = CodeCell (CommonCellContent src md) o empty_execution_count
+clearPrompt x = x
 
 mdBeforeCode :: Cell -> [Cell]
 mdBeforeCode (CodeCell x o i) =

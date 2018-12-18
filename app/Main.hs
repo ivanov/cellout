@@ -4,7 +4,7 @@ import Data.Semigroup ((<>))
 import Options.Applicative
 --import Options.Applicative.Help
 
-import Cellout
+import qualified Cellout as C
 
 data Opts = Options
     { inputFilename :: !FilePath
@@ -26,6 +26,13 @@ supported_outputs =
     , "markdown"
     ]
 
+getCellsFilter :: Opts -> (C.Cell -> C.Cell)
+getCellsFilter opts = case (clearOutput opts, clearPrompt opts) of
+    (True, True) -> (C.clearOutput . C.clearPrompt)
+    (True, False) -> C.clearOutput -- though this clears prompt also, at the moment
+    (False, True) -> C.clearPrompt
+    (False, False) -> id
+
 main :: IO ()
 main = do
     opts <- customExecParser p optsParser
@@ -41,19 +48,32 @@ main = do
     -- there's probably some nicer way of handling the Left case here, but this
     -- is fine for now to make progress
     --Right nb <- readNb (inputFilename opts)  ; \x -> fail x
-    Just nb <- readNb' (inputFilename opts)
+    Just nb <- C.readNb' (inputFilename opts)
 
-    info <- return (collectInfo nb)
+    info <- return (C.collectInfo nb)
 
     if (verbosity opts) > 2 || (summary opts)
-    then putStrLn ("Notebook contains " ++ info)
+    then putStrLn ("Input notebook contains " ++ info)
     else return ()
 
 
     -- TODO: we don't yet actually write the file
-    if (not $ readOnly opts) && (verbosity opts) > 0
-        then if (outputFilename opts) == "" then putStrLn ("Wrote " ++ (inputFilename opts))
-        else putStrLn ("Wrote " ++ (outputFilename opts))
+    if (not $ readOnly opts)
+    then let output = if (outputFilename opts) == "" then (inputFilename opts) else (outputFilename opts)
+             f = getCellsFilter opts
+             outNb = C.cellsFilter (fmap f) nb
+             outInfo = C.collectInfo outNb
+        in do
+            C.writeNb output outNb
+
+            if (verbosity opts) > 0
+            then putStrLn ("Wrote " ++ output)
+            else return ()
+
+            if (verbosity opts) > 2 || (summary opts)
+            then putStrLn ("Output notebook contains " ++ outInfo)
+            else return ()
+
     else return ()
 
     where
