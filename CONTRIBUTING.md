@@ -13,17 +13,17 @@ leading `#` around line 53 of `stack.yaml` in a pinch to get going.
 # Building
 
 Building the first time will take a while as you get all of the dependencies
-and compile them on your machine. Don't worry,  builds after that will be
+and compile them on your machine. Don't worry, builds after that will be
 faster, since stack will cache these and not rebuild them unless the versions
 change.
 
-```
+```shell
 stack build --fast
 ```
 
 # Running the executable
 
-```
+```shell
 stack exec cellout-exe
 ```
 
@@ -36,25 +36,25 @@ an input file.
 While you can use the running instructions above for running the resulting
 binary, we also have a test suite that you can run.
 
-```
+```shell
 stack test
 ```
 
 # Working iteratively
 
-As a relatively inexperienced Haskell programmer, I enjoy working `gchi`, the
+As a relatively inexperienced Haskell programmer, I enjoy working `ghci`, the
 interactive shell of the Glasgow Haskell Compiler. `cellout` has a few
 dependencies (like Aeson, the JSON parsing library), which means you will need
 a Haskell environment where those dependencies are available. Luckily, we can
 do that with
 
-```
-stack exec gchi
+```shell
+stack exec ghci
 ```
 
 This will startup GHCi with a message like this:
 
-```
+```haskell
 GHCi, version 8.4.3: http://www.haskell.org/ghc/  :? for help
 *Main>
 ```
@@ -63,13 +63,13 @@ that `*Main>` prompt is where we can now load (and later reload) the files
 we're working with, to see the compiler errors and try out our new functions
 interactively after we succeed in compiling.
 
-```
+```haskell
 :load src\Cellout.hs
 ```
 
 If we haven't broken anything, we'll get a message like this:
 
-```
+```haskell
 [1 of 1] Compiling Cellout              ( src\Cellout.hs, interpreted )
 Ok, one module loaded.
 *Cellout>
@@ -78,7 +78,7 @@ Ok, one module loaded.
 Otherwise, we'll get compiler error message. Either way, as we edit that file,
 we can reload it with:
 
-```
+```haskell
 :r
 ```
 
