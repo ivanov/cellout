@@ -11,6 +11,7 @@ module Cellout
     , emptyOutput
     , output1
     , testNb
+    , trivialNb
     , common
     , asCode
     , asMarkdown
