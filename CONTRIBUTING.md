@@ -40,6 +40,20 @@ binary, we also have a test suite that you can run.
 stack test
 ```
 
+Later on, to iterate quickly, you can re-run the test suite every time you write
+changes to the files like this:
+
+```shell
+stack test --file-watch
+```
+
+This is particularly useful when isolating to a particular test.
+
+```shell
+stack test --no-rerun-tests --file-watch --ta=--match="three"
+```
+
+
 # Working iteratively
 
 As a relatively inexperienced Haskell programmer, I enjoy working `ghci`, the
@@ -105,3 +119,5 @@ readNb :: FilePath -> IO (Either String Notebook))
 So `readNB` is a function that takes a FilePath, and returns an IO wrapped
 result of either a successfull reading of a notebook, or a String error message
 when trying to read it.
+
+

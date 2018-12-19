@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 -- {-# LANGUAGE OverloadedStrings #-} -- would get rid of T.pack
 module Cellout
-    ( Notebook
+    ( Notebook(..)
     , Cell
     , notebook
     , metaCorrector
