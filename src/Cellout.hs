@@ -157,6 +157,7 @@ instance FromJSON Cell where
         case cell_type of
             "markdown" -> MarkdownCell <$> (parseJSON (Object v) )
             "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (v .: T.pack "outputs") <*>  parseJSON (Object v)
+            "raw" -> RawCell <$> (parseJSON (Object v) )
             _ ->  fail "unrecognized cell type"
             -- "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (parseJSON (v .: T.pack "outputs")) <*>  ((v .: T.pack "execution_count"))
 
