@@ -56,3 +56,5 @@ tests:
     - -with-rtsopts=-N
     dependencies:
     - cellout
+    - hspec-discover
+    - hspec
