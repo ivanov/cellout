@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
--- {-# LANGUAGE OverloadedStrings #-} -- would get rid of T.pack
 module Cellout.Types
     ( Notebook(..)
     , Cell(..)
@@ -11,17 +10,9 @@ module Cellout.Types
     , Metadata
     ) where
 
-import Control.Arrow -- for >>>
-import Data.Aeson
-import Data.Set (Set, empty)
-import Data.Text.Encoding
 import GHC.Generics
-import Text.ParserCombinators.ReadP
-import qualified Data.ByteString as B
-import qualified Data.ByteString.Lazy as LB
-import qualified Data.HashMap.Lazy as HML
+import Data.Aeson (Value)
 import qualified Data.Map.Strict as Map
-import qualified Data.Text as T
 
 import System.Environment (getArgs)
 

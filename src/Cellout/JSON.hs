@@ -1,8 +1,11 @@
 module Cellout.JSON where
 
+import Data.Text.Encoding (decodeUtf8)
 import Cellout.Types
 import Data.Aeson
+import Data.Aeson.Encode.Pretty
 import Data.List (isSuffixOf)
+import qualified Data.ByteString.Lazy as LB
 import qualified Data.HashMap.Lazy as HML
 import qualified Data.Text as T
 
@@ -143,3 +146,22 @@ instance ToJSON ExecutionCount where
         }
 
 
+encode' :: ToJSON a => a -> LB.ByteString
+encode' = encodePretty' defConfig{confIndent=Spaces 1, confCompare=compare}
+
+writeNb :: FilePath -> Notebook -> IO ()
+writeNb file nb = LB.writeFile file (encode' nb)
+
+readNb :: FilePath -> IO (Either String Notebook)
+readNb f = do
+    input <- LB.readFile f
+    return (eitherDecode input)
+
+readNb' :: FilePath -> IO (Maybe Notebook)
+readNb' f = do
+    input <- LB.readFile f
+    return (decode input)
+
+
+nbAsJSONString :: Notebook -> String
+nbAsJSONString = T.unpack . decodeUtf8 . LB.toStrict . encode

@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
--- {-# LANGUAGE OverloadedStrings #-} -- would get rid of T.pack
 module Cellout
     ( Notebook(..)
     , Cell(..)
@@ -50,12 +49,8 @@ module Cellout
     ) where
 
 import Control.Arrow -- for >>>
-import Data.Aeson
-import Data.Aeson.Encode.Pretty
-import Data.List
-import Data.Set (Set, empty)
+import Data.Aeson (eitherDecode, encode, toJSON)
 import Data.Text.Encoding
-import qualified Data.ByteString as B
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -283,22 +278,6 @@ wordCount c = let s =  unlines . source' $  c
   in
     (length (lines s), length (words s), length s)
 
-encode' :: ToJSON a => a -> LB.ByteString
-encode' = encodePretty' defConfig{confIndent=Spaces 1, confCompare=compare}
-
-writeNb :: FilePath -> Notebook -> IO ()
-writeNb file nb = LB.writeFile file (encode' nb)
-
-readNb :: FilePath -> IO (Either String Notebook)
-readNb f = do
-    input <- LB.readFile f
-    return (eitherDecode input)
-
-readNb' :: FilePath -> IO (Maybe Notebook)
-readNb' f = do
-    input <- LB.readFile f
-    return (decode input)
-
 tupleSum :: (Int, Int, Int) -> (Int, Int, Int) -> (Int, Int, Int)
 tupleSum (a, b, c) (x, y, z) = (a+x, b+y, c+z)
 
@@ -324,18 +303,9 @@ collectInfo nb = let (code, md, raw) = countCellsByType (cells nb)
 stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
     input <- LB.readFile inputFile
-    --LB.writeFile outputFile $ encode testNb
     case (eitherDecode input) :: (Either String Notebook) of
         Left err -> putStrLn err
         Right nb -> writeNb outputFile nb
-            --
-            -- writeFile outputFile ( (T.unpack . decodeUtf8 . LB.toStrict . encode . clearOutputs) testNb)
-            -- LB.writeFile outputFile $ ( encode . clearOutputs ) testNb
-            --LB.writeFile outputFile $ (encode)  nb
-            -- putStrLn $ decodeUtf8 . LB.unpack. encode $ (onlyNonEmpty testNb)
-
-nbAsJSONString :: Notebook -> String
-nbAsJSONString = T.unpack . decodeUtf8 . LB.toStrict . encode
 
 main :: IO ()
 main = do
