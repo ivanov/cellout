@@ -50,3 +50,9 @@ spec_fromDisk = do
             case res of
                 Right nb -> (length . cells) nb `shouldBe` 77
                 Left err ->  "Could not read notebok" `shouldBe` err
+
+        it "can read notebooks with error output" $ do
+            res <- liftIO $ readNb "test/data/error.ipynb"
+            case res of
+                Right nb -> (length . cells) nb `shouldBe` 1
+                Left err ->  "Could not read notebok" `shouldBe` err
