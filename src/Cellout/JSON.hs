@@ -85,13 +85,19 @@ instance ToJSON CommonCellContent where
     toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
     toJSON = genericToJSON defaultOptions{ fieldLabelModifier = metaCorrector }
 
+outputTagMod :: String -> String
+outputTagMod "ExecuteResult" = "execute_result"
+outputTagMod "DisplayData" = "display_data"
+outputTagMod x = toLower x
+
+
 instance FromJSON Output where
     parseJSON = genericParseJSON defaultOptions{
         sumEncoding = TaggedObject "output_type" "",
         -- I want taggedflattened object, but instead rewrote  Output to have records
         unwrapUnaryRecords = True,
         fieldLabelModifier = metaCorrector . dataKeywordFix,
-        constructorTagModifier = \x -> if x == "ExecuteResult" then "execute_result" else (toLower x)
+        constructorTagModifier = outputTagMod
         }
     --     sumEncoding = TaggedObject "output_type" "contents",
     --     unwrapUnaryRecords = True,
@@ -116,7 +122,7 @@ instance ToJSON Output where
         -- I want taggedflattened object, but instead rewrote  Output to have records
         unwrapUnaryRecords = True,
         fieldLabelModifier = metaCorrector . dataKeywordFix,
-        constructorTagModifier = \x -> if x == "ExecuteResult" then "execute_result" else (toLower x)
+        constructorTagModifier = outputTagMod
         }
 
 

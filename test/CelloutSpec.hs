@@ -40,13 +40,13 @@ spec_fromDisk = do
                 Nothing ->  "Could not read notebok" `shouldBe` ""
 
         it "can read notebooks with all three cell types" $ do
-            res <- liftIO $ readNb' "test/data/empties.ipynb"
-            case res of
-                Just nb -> (length . cells) nb `shouldBe` 3
-                Nothing ->  "Could not read notebok" `shouldBe` ""
-
-        it "can read notebooks with all three cell types" $ do
             res <- liftIO $ readNb "test/data/empties.ipynb"
             case res of
                 Right nb -> (length . cells) nb `shouldBe` 3
+                Left err ->  "Could not read notebok" `shouldBe` err
+
+        it "can read notebooks with rich output" $ do
+            res <- liftIO $ readNb "test/data/Rich Output.ipynb"
+            case res of
+                Right nb -> (length . cells) nb `shouldBe` 77
                 Left err ->  "Could not read notebok" `shouldBe` err
