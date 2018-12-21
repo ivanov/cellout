@@ -50,8 +50,6 @@ data StreamName = Stdout | Stderr
     deriving (Show, Eq, Generic)
 
 {- | A code cell can have multiple outputs - be they execute results, display data, or streams (stdout and stderr).
-
-TODO: support output_type for error.
  -}
 data Output
     = ExecuteResult { data_ :: MimeBundle -- data is a haskell keyword
@@ -63,6 +61,10 @@ data Output
         }
     | DisplayData { data_ :: MimeBundle
         , outputmetadata :: Metadata
+        }
+    | ErrorData { ename :: String
+        , evalue :: String
+        , traceback :: [String]
         }
     deriving (Show, Eq, Generic)
 

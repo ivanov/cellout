@@ -88,6 +88,7 @@ instance ToJSON CommonCellContent where
 outputTagMod :: String -> String
 outputTagMod "ExecuteResult" = "execute_result"
 outputTagMod "DisplayData" = "display_data"
+outputTagMod "ErrorData" = "error"
 outputTagMod x = toLower x
 
 
