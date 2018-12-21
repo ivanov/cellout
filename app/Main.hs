@@ -48,33 +48,10 @@ main = do
     -- there's probably some nicer way of handling the Left case here, but this
     -- is fine for now to make progress
     --Right nb <- readNb (inputFilename opts)  ; \x -> fail x
-    Just nb <- C.readNb' (inputFilename opts)
-
-    info <- return (C.collectInfo nb)
-
-    if (verbosity opts) > 2 || (summary opts)
-    then putStrLn ("Input notebook contains " ++ info)
-    else return ()
-
-
-    -- TODO: we don't yet actually write the file
-    if (not $ readOnly opts)
-    then let output = if (outputFilename opts) == "" then (inputFilename opts) else (outputFilename opts)
-             f = getCellsFilter opts
-             outNb = C.cellsFilter (fmap f) nb
-             outInfo = C.collectInfo outNb
-        in do
-            C.writeNb output outNb
-
-            if (verbosity opts) > 0
-            then putStrLn ("Wrote " ++ output)
-            else return ()
-
-            if (verbosity opts) > 2 || (summary opts)
-            then putStrLn ("Output notebook contains " ++ outInfo)
-            else return ()
-
-    else return ()
+    res <- C.readNb (inputFilename opts)
+    case res of
+        Left err -> fail err
+        Right nb -> withNotebook nb opts
 
     where
         p :: ParserPrefs
@@ -108,6 +85,33 @@ main = do
             <*> (length <$> many (flag' () (long "verbose" <> short 'v' <> help "Print debugging messages. Multiple -v options increase the verbosity, up to a maximum of 5.")))
 
 
+withNotebook :: C.Notebook -> Opts -> IO ()
+withNotebook nb opts = do
+    info <- return (C.collectInfo nb)
+
+    if (verbosity opts) > 2 || (summary opts)
+    then putStrLn ("Input notebook contains " ++ info)
+    else return ()
+
+
+    -- TODO: we don't yet actually write the file
+    if (not $ readOnly opts)
+    then let output = if (outputFilename opts) == "" then (inputFilename opts) else (outputFilename opts)
+             f = getCellsFilter opts
+             outNb = C.cellsFilter (fmap f) nb
+             outInfo = C.collectInfo outNb
+        in do
+            C.writeNb output outNb
+
+            if (verbosity opts) > 0
+            then putStrLn ("Wrote " ++ output)
+            else return ()
+
+            if (verbosity opts) > 2 || (summary opts)
+            then putStrLn ("Output notebook contains " ++ outInfo)
+            else return ()
+
+    else return ()
 --- NEAT
 --
 -- Using bash auto-completion
