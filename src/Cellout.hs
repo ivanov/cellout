@@ -2,14 +2,15 @@
 -- {-# LANGUAGE OverloadedStrings #-} -- would get rid of T.pack
 module Cellout
     ( Notebook(..)
-    , Cell
+    , Cell(..)
+    , CommonCellContent(..)
+    , Output(..)
+    , ExecutionCount(..)
+    , MimeBundle
+    , StreamName(..)
+    , Metadata
     , notebook
-    , metaCorrector
-    , dataKeywordFix
-    , unobject
-    , merge
     , emptyOutput
-    , output1
     , testNb
     , trivialNb
     , common
@@ -28,7 +29,6 @@ module Cellout
     , clearPrompt
     , mdBeforeCode
     , mdBeforeEachCodeDumb
-    , contentFiltering
     , cellMap
     , cellsFilter
     , nbFilter
@@ -38,7 +38,6 @@ module Cellout
     , onlyMarkdownContent
     , onlyCodeContent
     , onlyNonEmpty
-    , insertMd
     , reversed
     , onlyCell
     , wordCount
@@ -66,59 +65,75 @@ import qualified Data.Text as T
 
 import System.Environment (getArgs)
 
+{- |
+   In-memory representation of a Jupyter notebook.
+ -}
 data Notebook =
     Notebook
     { cells :: [ Cell ]
-    , nbmetadata :: Map.Map String Value -- should be possible to do nested StringOrMap
+    , nbmetadata :: Metadata -- TODO: may want to be more specific about typical keys in the notebook metadata (kernelspec, language_info)
     , nbformat :: Int
     , nbformat_minor :: Int
     } deriving (Show, Generic, Eq)
 
--- Notebook4 :: [Cell] -> (Map.Map String Sting)
-notebook :: [Cell] -> Map.Map String Value ->  Notebook
+-- | convenience function for creating a Notebook with nbformat 4.2
+notebook :: [Cell] -> Metadata -> Notebook
 notebook c m  = Notebook c m 4 2
 
+-- | All cells have a set of source lines, and cell-level metadata
 data CommonCellContent =
     CommonCellContent
     { source :: [String]
-    , cellmetadata :: Map.Map String String -- same as nested comment above
+    , cellmetadata :: Metadata
     } deriving (Show, Generic, Eq)
 
+type Metadata = Map.Map String Value
 
-type MimeBundle = Map.Map String [String] -- 'text' should get re-keyd to 'data' on serialization
+-- | A mime bundle
+type MimeBundle = Map.Map String Value
 
 
 toLower = (T.unpack . T.toLower . T.pack)
 
-data StdSomething = Stdout | Stderr
+-- | Streams are either Stdout or Stderr
+data StreamName = Stdout | Stderr
     deriving (Show, Eq, Generic)
 
-instance ToJSON StdSomething where
+instance ToJSON StreamName where
     toJSON = genericToJSON defaultOptions{
         constructorTagModifier = toLower
     }
 
-instance FromJSON StdSomething where
+instance FromJSON StreamName where
     parseJSON = genericParseJSON defaultOptions{
         constructorTagModifier = toLower
     }
 
--- TODO: output should be a list of mimebundles?
--- TODO: we take advantage of the default TaggedObject JSON-ization of records
--- into the object to minimize
+{- | A code cell can have multiple outputs - be they execute results, display data, or streams (stdout and stderr).
+
+TODO: support output_type for display data and error.
+ -}
 data Output
     = ExecuteResult { data_ :: MimeBundle -- data is a haskell keyword
         , execution_count :: Int
-        , outputmetadata :: (Map.Map String String)
+        , outputmetadata :: Metadata
         }
-    | Stream { name :: StdSomething
+    | Stream { name :: StreamName
         , text :: [String]
         }
     deriving (Show, Eq, Generic)
 
+-- | Execution count can be unset (Nothing - serialized to undefined), or
+-- just some integer
 data ExecutionCount = ExecutionCount (Maybe Int)
    deriving (Show, Eq, Generic)
 
+{- | Jupyter notebook cells come in three different flavors: Markdown,
+ Code, and Raw. All three share a content structure with source (a list of
+ strings) and metadata (a dictionary). In addition, the Code
+ cells also have a list of Outputs, and an execution count.
+
+ -}
 data Cell
     = MarkdownCell CommonCellContent
     | CodeCell  CommonCellContent [Output] ExecutionCount
@@ -249,31 +264,20 @@ instance ToJSON ExecutionCount where
         }
 
 
-ecj :: Value
-ecj = toJSON (ExecutionCount (Just 1))
 
-ecn :: Value
-ecn = toJSON (ExecutionCount Nothing)
-
-ec :: Result ExecutionCount
-ec = fromJSON  ecj
-
-ec2 :: Result ExecutionCount
-ec2 = fromJSON  ecn
-
--- map
-
+-- | A convenience function for empty output
 emptyOutput :: [Output]
 emptyOutput = []
 
 output1 :: String -> [String] -> Int -> Output
-output1 k v i = ExecuteResult (Map.singleton k v) i mempty
+output1 k v i = ExecuteResult (Map.singleton k (toJSON v)) i mempty
 
 -- let's think about this a bit, I'll be able to case-switch on cell type if I
 -- go with the above, but is that something I will want to do? I guess it makes
 -- the rest of the validation more explicit
 
 
+-- | A multi-cell example notebook (useful for testing and ghci work)
 testNb :: Notebook
 testNb = notebook
     [ MarkdownCell $ CommonCellContent ["# In the Beginning\n"] mempty
@@ -289,26 +293,30 @@ testNb = notebook
     ]
     mempty -- should I be using mempty here?
 
+-- | A notebook with no cells and no metadata
 trivialNb :: Notebook
 trivialNb = notebook mempty mempty
 
-roundtrip :: Notebook -> Result Notebook
-roundtrip = fromJSON . toJSON
-
 oneNb = onlyCell 3 testNb
 
+-- | returns just the CommonCellContent for any type of cell
 common :: Cell -> CommonCellContent
 common (MarkdownCell c) = c
 common (CodeCell c _ _) = c
 common (RawCell c) = c
 
 
--- TODO: markdown_indicator will need to be language sensitve, passed in, or
--- else no makrdown cells should be included
+{- Converts code cells to strings in a trivial manner, but pre-pends the
+markdown_indicator in front of each line for Markdown and Raw cells
+
+TODO: markdown_indicator will need to be language sensitve, passed in, or
+else no markdown cells should be included.
+-}
 asCode :: Cell -> String
 asCode cell =  case cell of
-    MarkdownCell c -> foldMap markdown_indicator (source c)
     CodeCell c _ _-> unlines $ source c
+    MarkdownCell c -> foldMap markdown_indicator (source c)
+    RawCell c      -> foldMap markdown_indicator (source c)
 
 
 -- TODO: same as markdown_indicator above, we need a code_indicator below for
@@ -356,25 +364,40 @@ clearMetadata (RawCell (CommonCellContent src _)) = RawCell (CommonCellContent s
 clearCellMetadata :: [Cell] -> [Cell]
 clearCellMetadata = fmap clearMetadata
 
-{- NB: clearOutput clears both the output and resets the execution count -}
+{- | Removes output from a code cell, all other cells returned unmodified.
+
+NB: clearOutput clears both the output and resets the execution count
+-}
 clearOutput :: Cell -> Cell
 clearOutput (CodeCell (CommonCellContent src md) _ _) = CodeCell (CommonCellContent src md) emptyOutput empty_execution_count
 clearOutput x = x
 
+-- | Removes output from all code cells in the notebook.
 clearOutputs :: Notebook -> Notebook
 clearOutputs =  cellsFilter (fmap clearOutput)
 
-{- NB: clearOutput clears both the output and resets the execution count -}
+{- | When passed a code cell, returns a copy with a cleared execution count cleared. For all other cell types, does nothing and returns the original.
+NB: clearOutput clears both the output and resets the execution count
+-}
 clearPrompt :: Cell -> Cell
 clearPrompt (CodeCell (CommonCellContent src md) o _) = CodeCell (CommonCellContent src md) o empty_execution_count
 clearPrompt x = x
 
+-- | Removes prompts from all code cells in the notebook.
+clearPrompts :: Notebook -> Notebook
+clearPrompts =  cellsFilter (fmap clearPrompt)
+
+{- | Returns a list of of one or two cells, depending on the input cell.
+If the input cell is a code cell, you get back a markdown cell, followed by
+the original, otherwise, a list of just the one original cell is returned.
+-}
 mdBeforeCode :: Cell -> [Cell]
-mdBeforeCode (CodeCell x o i) =
-    [ MarkdownCell $  CommonCellContent [""] mempty, (CodeCell x o i)]
+mdBeforeCode cell@(CodeCell x o i) =
+    [ MarkdownCell $  CommonCellContent [""] mempty, cell ]
+-- don't be scared, cell@(...) is just an alias for (CodeCell x o i)
 mdBeforeCode x = [x]
 
--- Inserting more cells
+-- | Inserts an empty Markdown cell before every code cell
 mdBeforeEachCodeDumb :: [Cell] -> [Cell]
 mdBeforeEachCodeDumb cells = concatMap mdBeforeCode cells
 
@@ -419,27 +442,27 @@ showNb f = cells
     >>> fmap f
     >>> concat
 
-onlyMarkdownContent :: Notebook -> String
+onlyMarkdownContent :: Notebook -> Notebook
 onlyMarkdownContent
-    = contentFiltering onlyMarkdown
+    = cellsFilter onlyMarkdown
 
-onlyCodeContent :: Notebook -> String
+onlyCodeContent :: Notebook -> Notebook
 onlyCodeContent
-    = contentFiltering onlyCode
+    = cellsFilter onlyCode
 
 onlyNonEmpty :: Notebook -> Notebook
 onlyNonEmpty
     = cellsFilter clearEmpty
 
-insertMd :: Notebook -> String
+insertMd :: Notebook -> Notebook
 insertMd
-    = contentFiltering mdBeforeEachCodeDumb
+    = cellsFilter mdBeforeEachCodeDumb
 
-reversed :: Notebook -> String
+reversed :: Notebook -> Notebook
 reversed
-    = contentFiltering reverse
+    = cellsFilter reverse
 
-{- Return a notebook containing only the cell at position `i`
+{- | Return a notebook containing only the cell at position `i`
  -}
 onlyCell ::  Int -> Notebook -> Notebook
 onlyCell i (Notebook c n f m) =  Notebook [ c !! i ] n f m
@@ -482,6 +505,10 @@ cellCount (RawCell _) (x, y, z) = (x, y, z+1)
 countCellsByType :: [Cell] -> (Int, Int, Int)
 countCellsByType cells = foldr cellCount (0,0,0) cells
 
+{- Get a summary string for this notebook (cell breakdown by type).
+
+TODO: generalize this, don't just write to a string immediately.
+ -}
 collectInfo :: Notebook -> String
 collectInfo nb = let (code, md, raw) = countCellsByType (cells nb)
     in

@@ -6,22 +6,27 @@ import Test.Hspec
 import Cellout
 import Data.Aeson
 
+
+roundtrip :: Notebook -> Result Notebook
+roundtrip = fromJSON . toJSON
+
 spec :: Spec
 spec = do
     describe "roundtrip to/fromJSON of " $ do
         it "in-memory test of trivial notebook" $ do
-            case (fromJSON . toJSON) trivialNb of
+            case roundtrip trivialNb of
                 Success newNotebook ->
                     trivialNb `shouldBe` newNotebook
                 Error err -> do
-                    fail "failed to read notebook"
+                    "Could not read notebok" `shouldBe` err
 
         it "in-memory test of notebook" $ do
-            case (fromJSON . toJSON) testNb of
+            case roundtrip testNb of
                 Success newNotebook ->
                     testNb `shouldBe` newNotebook
                 Error err -> do
-                    fail "failed to read notebook"
+                    "Could not read notebok" `shouldBe` err
+
     spec_fromDisk
 
 
