@@ -74,10 +74,6 @@ emptyOutput = []
 output1 :: String -> [String] -> Int -> Output
 output1 k v i = ExecuteResult (Map.singleton k (toJSON v)) i mempty
 
--- let's think about this a bit, I'll be able to case-switch on cell type if I
--- go with the above, but is that something I will want to do? I guess it makes
--- the rest of the validation more explicit
-
 
 -- | A multi-cell example notebook (useful for testing and ghci work)
 testNb :: Notebook
@@ -203,20 +199,28 @@ mdBeforeCode x = [x]
 mdBeforeEachCodeDumb :: [Cell] -> [Cell]
 mdBeforeEachCodeDumb cells = concatMap mdBeforeCode cells
 
--- By keeping content's first argument as [Cells] -> [Cells], we allow both the
--- exclusion of cells, and the addition of new ones. Also, we can examin
--- adjacent cells to make decisions about what to add or remove.
---
--- TODO: This, then also suggests we should return a Notebook, instead of a string.
---
---}
-contentFiltering :: ([Cell] -> [Cell]) -> Notebook  -> String
-contentFiltering f
-    = printCells . cellsFilter f
 
+{- | Collect arbitrary information from each cell in a notebook and returns that list.
+ -}
 cellMap :: (Cell -> a) -> Notebook  -> [a]
 cellMap f n = map f (cells n)
 
+{- | Per-cell modification for the notebook. Useful for
+ -}
+cellFilter :: (Cell -> Cell) -> Notebook  -> Notebook
+-- cellFilter f nb@(Notebook cs nbmeta fmt m)
+--     = Notebook (cellMap f nb) nbmeta fmt m
+cellFilter f = cellsFilter (fmap f)
+
+{- | A generic filter for the list of cells in a notebook.
+
+ By keeping content's first argument as [Cells] -> [Cells], we allow both the
+ exclusion of cells, and the addition of new ones, on top of any tranformation
+ that take place within the cell itself. Also, we can examine adjacent cells to
+ make decisions about what to add or remove.
+
+See also: 'cellFilter'
+ -}
 -- How do I copy over most elements from the old notebook and just change the cells aspect of it?
 cellsFilter :: ([Cell] -> [Cell]) -> Notebook  -> Notebook
 cellsFilter f (Notebook cs nbmeta fmt m)
@@ -237,6 +241,8 @@ printCells
     = cells
     >>> fmap asCode
     >>> concat
+-- the above is equiavalent to
+-- = concat (fmap asCode $ cells nb )
 
 -- for now, this ignores any metadata...
 showNb :: (Cell -> String) -> Notebook -> String
@@ -281,24 +287,30 @@ wordCount c = let s =  unlines . source' $  c
 tupleSum :: (Int, Int, Int) -> (Int, Int, Int) -> (Int, Int, Int)
 tupleSum (a, b, c) (x, y, z) = (a+x, b+y, c+z)
 
-{- returns a tuple of (Code, Markdow, Raw) cells counts -}
 cellCount :: Cell -> (Int, Int, Int) -> (Int, Int, Int)
 cellCount (CodeCell _ _ _) (x, y, z) = (x+1, y, z)
 cellCount (MarkdownCell _) (x, y, z) = (x, y+1, z)
 cellCount (RawCell _) (x, y, z) = (x, y, z+1)
 
-{- returns a tuple of (Code, Markdow, Raw) cells counts -}
+{- | Returns a tuple of (Code, Markdow, Raw) cells counts -}
 countCellsByType :: [Cell] -> (Int, Int, Int)
 countCellsByType cells = foldr cellCount (0,0,0) cells
 
-{- Get a summary string for this notebook (cell breakdown by type).
+plural :: Int -> String
+plural 1 = ""
+plural _ = "s"
+
+{- | Get a summary string for this notebook (cell breakdown by type).
 
 TODO: generalize this, don't just write to a string immediately.
  -}
 collectInfo :: Notebook -> String
-collectInfo nb = let (code, md, raw) = countCellsByType (cells nb)
+collectInfo nb
+    = let
+        (code, md, raw) = countCellsByType (cells nb)
+        sum = code + md + raw
     in
-        show (code + md + raw) ++ " cells, (" ++ show code ++ " code, " ++ show md ++ " markdown)"
+        show sum ++ " cell" ++ plural sum ++ " (" ++ show code ++ " code, " ++ show md ++ " markdown)"
 
 stripOutputIO :: String -> String -> IO ()
 stripOutputIO inputFile outputFile = do
@@ -307,18 +319,6 @@ stripOutputIO inputFile outputFile = do
         Left err -> putStrLn err
         Right nb -> writeNb outputFile nb
 
-main :: IO ()
-main = do
-    -- (toEncoding . source . common . (!! 3) . cells) testNb
-    args <- getArgs
-    case args of
-        [input] -> stripOutputIO input "no_output.ipynb"
-        [input, output] -> stripOutputIO input output
-        _ -> stripOutputIO "test/data/hi.nbconvert.ipynb" "test/hi.cellout.ipynb"
-        --_ -> putStrLn "please specify at least the input filename"
-
-
-
 
 -- ALTERNATIVES
 --
@@ -326,8 +326,6 @@ main = do
 -- printCells nb
 --     = concat (fmap asCode $ cells nb )
 --
--- onlyMarkdownContent :: Notebook -> String
--- onlyMarkdownContent nb = unwords . fmap asCode $ onlyMarkdown $ cells (nb)
 
 -- printCells :: Notebook -> String
 -- printCells
@@ -335,34 +333,6 @@ main = do
 --     >>> fmap asCode
 --     >>> concat
 
----- ARGH! why doesn't this work?
--- -- 2018-10-09 - I know now, you have to qualified import
--- onlyCode2 :: [Cell] -> [Cell]
--- onlyCode2 = keep False True >>> filter
---  cellout.hs:58:33: error:
---      Ambiguous occurrence `filter'
---      It could refer to either `Data.List.filter',
---                               imported from `Data.List' at cellout.hs:3:1-16
---                               (and originally defined in `GHC.List')
---                            or `Data.Set.filter',
---                               imported from `Data.Set' at cellout.hs:4:1-15
---                               (and originally defined in `Data.Set.Internal')
---     |
---  58 | onlyCode2 = keep False True >>> filter
---     |                                 ^^^^^^
-
-
--- keep :: Bool -> Bool -> Cell -> Bool
--- keep md code x = case x of
---     MarkdownCell c -> md
---     CodeCell c -> code
---
--- keep :: Bool -> Bool -> Cell -> Bool
--- keep md code (MarkdownCell _)  = md
--- keep md code (CodeCell _)  = code
---
--- isMarkdown ::  Cell -> Bool
--- isMarkdown = keep True False
 --
 -- 2018-10-02
 -- ideas:

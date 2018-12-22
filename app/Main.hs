@@ -123,6 +123,4 @@ withNotebook nb opts = do
 -- myprog --bash-completion-script myprog >/etc/bash_completion.d/myprog)
 --
 -- TODO
--- [x] - reorder helper and versionOption to put them at the end
 -- [ ] - accept multiple filenames?
--- [ ] - is it possible to show help on error only for the empty case?

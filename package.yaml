@@ -4,7 +4,7 @@ github:              "ivanov/cellout"
 license:             BSD3
 author:              "Paul Ivanov"
 maintainer:          "pi@berkeley.edu"
-copyright:           "2018 Author name here"
+copyright:           "2018 Paul Ivanov"
 
 extra-source-files:
 - README.md
