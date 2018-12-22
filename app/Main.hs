@@ -112,15 +112,3 @@ withNotebook nb opts = do
             else return ()
 
     else return ()
---- NEAT
---
--- Using bash auto-completion
--- Every program using optparse-applicative gets hidden arguments to support bash auto-completion. For your own personal use, you run this or add it this to your .bashrc:
---
--- eval "$(myprog --bash-completion-script myprog)"
--- To install the bash completion system-wide, put the output of --bash-completion-script where your system looks for it. For example, on Ubuntu:
---
--- myprog --bash-completion-script myprog >/etc/bash_completion.d/myprog)
---
--- TODO
--- [ ] - accept multiple filenames?

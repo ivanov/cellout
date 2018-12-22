@@ -1,0 +1,107 @@
+This is a somewhat loose, freeform set of notes I made while working.
+Occasionally I go through and cleanup these notes, since not all of them are
+very useful.
+
+2018-10-02
+ideas:
+[ ] look at some nbconvert stuff for functionality
+[ ] executable traversal (writing back to the code cell output)
+[ ] command-line spellchecking facility?
+[ ] wrapped (kanten-style) notebook presentation?
+[ ] interactive mode with live preview  for size and content?
+[ ] metadata editor
+[ ] selecting only cells matching a tag, or filtering them out
+[ ] interactive cell-level editing marking/tagging
+[ ] nbformat fuzzing tool?
+
+output as ->
+[x] executable script
+[x] code only (filter codecell and strip output)
+[x] markdown
+[ ] notebook
+
+2018-10-09
+[x] current serialization doesn't match nbformat:
+     Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb AttributeError('cell_type',)
+[ ] when you have more than one execute_count output in a code cell, which one should be shown? all?
+[x] Unreadable Notebook: C:\bbg\jlabremix\tmp\hi.ipynb UnboundLocalError("local variable 'newcell' referenced before assignment",)
+[ ] probably remove the nbformat major/minor from the Notebook model and
+    have some mixin that does that at the end (most filters won't care about nbformat version)
+
+from Anthony:
+    multiparameter type classes --
+    threadscope...
+typeclasses - Show Eq -- Functor Traversable Applicative Monoid Monad
+import Data.List hiding filter  -- from Anthony
+
+[x] add command-line parsing
+[ ] pandoc integration?
+
+2018-10-12
+[ ] upstream: execution_count redundancy at the cell and output level
+
+2018-10-17
+[ ] separate input and output in different lists /  storage structures
+what was my thought about each cell having its own ID - oh, right, storing
+all of the text up front so you can edit it that way and then rejoin/resplit
+it up (but allows for saving of output)
+
+*Main Data.Aeson.Types> :set -XOverloadedStrings
+> decode "{}"  :: Maybe Value
+Just (Object (fromList []))
+> decode "{\"a\":1}"  :: Maybe Value
+Just (Object (fromList [("a",Number 1.0)]))
+
+2018-10-19
+[x] strip output as the initial use case with IO
+
+2018-10-22
+[ ] readNotebook >>> writeNotebook >>> ( reformat using nbconvert?) >>> diff with original
+    ^-- is to gauge what we're dropping on the floor right now, so we
+        eventually get to dropping nothing at all
+[ ] add flags for --strip-output, for example, do do noop cellout
+
+# roundtrip gaps
+[x] Execution count missing from In[ ] section
+[x] output stream text missing
+[x] encoding conversion for streams
+
+2018-11-02
+[x] --readonly / --read-only flags (no output - useful for )
+[x] --summary (number of cells, broken down by type, how many executed)
+[ ] do we need some sort of executor abstraction down the line?
+
+2018-11-06
+[ ] should we convert "source": [ "" ] to just "source": []?
+[x] match up to reordered keys and whitespace for cleared output
+
+2018-11-26
+[x] rework stream
+[ ] replicate newline behavior for multiple source strings?
+[x] preserve notebook metadata
+
+2018-11-27
+[x] run `jq -S --indent 1` until I get the pretty printing figured out
+
+2018-12-17
+[x] better error message when failing to read notebook
+
+ NEAT
+
+Using bash auto-completion
+Every program using optparse-applicative gets hidden arguments to support bash
+auto-completion. For your own personal use, you run this or add it this to your
+.bashrc:
+
+eval "$(myprog --bash-completion-script myprog)"
+To install the bash completion system-wide, put the output of
+--bash-completion-script where your system looks for it. For example, on Ubuntu:
+
+myprog --bash-completion-script myprog >/etc/bash_completion.d/myprog)
+
+[ ] - accept multiple filenames? ?
+
+2018-12-21
+[ ] command line tag filtering
+[ ] --cell-tags added to summary
+[ ] --list-cell-tags?
