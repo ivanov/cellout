@@ -79,7 +79,7 @@ output1 k v i = ExecuteResult (Map.singleton k (toJSON v)) i mempty
 testNb :: Notebook
 testNb = notebook
     [ MarkdownCell $ CommonCellContent ["# In the Beginning\n"] mempty
-    , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
+    , RawCell $ CommonCellContent ["yo\n", "I'm a multiline raw cell\n"] mempty
     , MarkdownCell $ CommonCellContent ["yo\n", "I'm a multiline markdown cell\n"] mempty
     , CodeCell ( CommonCellContent ["print ('hello')\n", "'yo there'"]  mempty) [Stream Stdout ["hello\n"], output1 "text/plain" ["'yo there'"] 2 ] (ExecutionCount (Just 2))
     , CodeCell ( CommonCellContent mempty mempty) emptyOutput empty_execution_count

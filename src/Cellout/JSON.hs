@@ -62,6 +62,7 @@ instance ToJSON Cell where
     -- toJSON (MarkdownCell c) = object $ [ cell_type .= "markdown" ]
     -- toJSON (CodeCell c o i) = object $ [ cell_type .= "code" ]
     toJSON (MarkdownCell c) = Object $ HML.insert cell_type (toJSON "markdown") (unobject $ toJSON c)
+    toJSON (RawCell c) = Object $ HML.insert cell_type (toJSON "raw") (unobject $ toJSON c)
     -- TODO: change this to genericToEncoding with new options
     -- TODO: I should be able to use <> to concatenate the hashmaps here, no?
     toJSON (CodeCell c o i) = merge (object [ cell_type .= "code", outputs .= o])
