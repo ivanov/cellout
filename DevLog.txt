@@ -105,3 +105,26 @@ myprog --bash-completion-script myprog >/etc/bash_completion.d/myprog)
 [ ] command line tag filtering
 [ ] --cell-tags added to summary
 [ ] --list-cell-tags?
+
+2019-01-04
+can't get alternative parsing to work... so taking a different tack:
+
+	modifyFailure :: (String -> String) -> Parser a -> Parser a
+
+	If the inner Parser failed, modify the failure message using the provided
+	function. This allows you to create more descriptive error messages. For
+	example:
+
+	parseJSON (Object o) = modifyFailure
+		("Parsing of the Foo value failed: " ++)
+		(Foo <$> o .: "someField")
+
+
+	parserThrowError :: JSONPath -> String -> Parser a
+
+	Throw a parser error with an additional path.
+
+	parserCatchError :: Parser a -> (JSONPath -> String -> Parser a) -> Parser a
+
+	A handler function to handle previous errors and return to normal execution.
+

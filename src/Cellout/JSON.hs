@@ -1,8 +1,11 @@
 module Cellout.JSON where
 
+import Data.Foldable (asum)
+import Control.Applicative -- ((<|>))
 import Data.Text.Encoding (decodeUtf8)
 import Cellout.Types
 import Data.Aeson
+-- import qualified Data.Aeson.Types.Internal (Parser)
 import Data.Aeson.Encode.Pretty
 import Data.List (isSuffixOf)
 import qualified Data.ByteString.Lazy as LB
@@ -36,12 +39,24 @@ toLower = (T.unpack . T.toLower . T.pack)
 
 opts = defaultOptions{ fieldLabelModifier = metaCorrector }
 
+--nbformat3Parser :: Value -> Parser Notebook
+nbformat3Parser (Object v) =
+    Notebook <$> mempty
+             <*> mempty
+             <*> v .: T.pack "nbformat"
+             <*> v .: T.pack "nbformat_minor"
+
+-- TODO: combine multiple notebook parsers, since version 3 had cells under "worksheet"
+-- or do I want to make Notebook4 and Notebook3 separte instances, and have Notebook be a union of those two?
 instance FromJSON Notebook where
-    parseJSON = genericParseJSON opts
+    parseJSON = (genericParseJSON opts) <|> nbformat3Parser
+    --parseJSON = asum [(genericParseJSON opts), nbformat3Parser] -- <|> nbformat3Parser2
 instance ToJSON Notebook where
     toEncoding = genericToEncoding opts
     toJSON = genericToJSON opts
 
+-- try the following
+--
 
 cell_type = T.pack "cell_type"
 outputs = T.pack "outputs"
@@ -161,7 +176,14 @@ encode' :: ToJSON a => a -> LB.ByteString
 encode' = encodePretty' defConfig{confIndent=Spaces 1, confCompare=compare}
 
 writeNb :: FilePath -> Notebook -> IO ()
-writeNb file nb = LB.writeFile file (encode' nb)
+writeNb file nb = do
+    if (version /= 4)
+    then
+        putStrLn $ "WARNING: I don't necessarily  know how to write notebook version" ++ (show version)
+    else
+        pure ()
+    LB.writeFile file (encode' nb)
+    where version = nbformat nb
 
 readNb :: FilePath -> IO (Either String Notebook)
 readNb f = do
