@@ -7,6 +7,7 @@ import Data.Aeson.Encode.Pretty
 import Data.List (isSuffixOf)
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.HashMap.Lazy as HML
+-- TODO: get rid of the HML usage here - there must be a better API for this
 import qualified Data.Text as T
 
 
@@ -33,11 +34,13 @@ dataKeywordFix x = x
 
 toLower = (T.unpack . T.toLower . T.pack)
 
+opts = defaultOptions{ fieldLabelModifier = metaCorrector }
+
 instance FromJSON Notebook where
-    parseJSON = genericParseJSON  defaultOptions{ fieldLabelModifier = metaCorrector }
+    parseJSON = genericParseJSON opts
 instance ToJSON Notebook where
-    toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
-    toJSON = genericToJSON defaultOptions{ fieldLabelModifier = metaCorrector }
+    toEncoding = genericToEncoding opts
+    toJSON = genericToJSON opts
 
 
 cell_type = T.pack "cell_type"
@@ -80,11 +83,11 @@ merge :: Value -> Value -> Value
 merge (Object x) (Object y) = Object $ HML.union x y
 
 instance FromJSON CommonCellContent where
-    parseJSON = genericParseJSON  defaultOptions{ fieldLabelModifier = metaCorrector }
+    parseJSON = genericParseJSON  opts
 instance ToJSON CommonCellContent where
-    -- toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
-    toEncoding = genericToEncoding defaultOptions{ fieldLabelModifier = metaCorrector }
-    toJSON = genericToJSON defaultOptions{ fieldLabelModifier = metaCorrector }
+    -- toEncoding = genericToEncoding opts
+    toEncoding = genericToEncoding opts
+    toJSON = genericToJSON opts
 
 outputTagMod :: String -> String
 outputTagMod "ExecuteResult" = "execute_result"
