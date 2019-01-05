@@ -5,6 +5,7 @@ import Control.Applicative -- ((<|>))
 import Data.Text.Encoding (decodeUtf8)
 import Cellout.Types
 import Data.Aeson
+import Data.Aeson.Types
 -- import qualified Data.Aeson.Types.Internal (Parser)
 import Data.Aeson.Encode.Pretty
 import Data.List (isSuffixOf)
@@ -41,15 +42,16 @@ opts = defaultOptions{ fieldLabelModifier = metaCorrector }
 
 --nbformat3Parser :: Value -> Parser Notebook
 nbformat3Parser (Object v) =
-    Notebook <$> mempty
-             <*> mempty
-             <*> v .: T.pack "nbformat"
-             <*> v .: T.pack "nbformat_minor"
+    Notebook <$>  v .: T.pack "worksheets"
+             <*>  v .:? T.pack "metadata" .!= mempty
+             <*>  v .:? T.pack "nbformat" .!= 3
+             <*>  v .:? T.pack "nbformat_minor" .!= 0
 
 -- TODO: combine multiple notebook parsers, since version 3 had cells under "worksheet"
 -- or do I want to make Notebook4 and Notebook3 separte instances, and have Notebook be a union of those two?
 instance FromJSON Notebook where
-    parseJSON = (genericParseJSON opts) <|> nbformat3Parser
+    parseJSON x = modifyFailure ("Sorry, I can't parse this notebook: " ++) (genericParseJSON opts x) <|> (nbformat3Parser x)
+    --parseJSON x = (genericParseJSON opts x) <|> (nbformat3Parser x)
     --parseJSON = asum [(genericParseJSON opts), nbformat3Parser] -- <|> nbformat3Parser2
 instance ToJSON Notebook where
     toEncoding = genericToEncoding opts
