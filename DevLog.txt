@@ -135,3 +135,9 @@ parse nbformat3Parser it
 monoidal thoughts: having the common cell content be a monoid kind of makes
 sense, you can always merge multiple cells together... but what should the type
 be of two cells when you merge them (if they are not the same?)
+
+sweet, now I can <> multiple instance of CommonCellContent! woo!
+
+although, joining Cells themselves is trickier - because you have to decide the
+joining of heteregenous cell_type semantics.
+

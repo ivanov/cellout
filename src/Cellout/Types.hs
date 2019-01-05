@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
 module Cellout.Types
     ( Notebook(..)
     , Cell(..)
@@ -38,6 +38,15 @@ data CommonCellContent =
     { source :: [String]
     , cellmetadata :: Metadata
     } deriving (Show, Generic, Eq)
+
+-- TODO: how do I make instances of Applicative/Alternative/Monoid?
+-- instance Alternative (CommonCellContent where
+--     empty = CommonCellContent mempty mempty
+-- hmm... I think I've got it, but am I abusing Monoid here?
+instance Semigroup CommonCellContent where
+    (CommonCellContent a b) <> (CommonCellContent x y) = CommonCellContent (a <> x) (b <> y)
+instance Monoid CommonCellContent where
+    mempty = CommonCellContent mempty mempty
 
 type Metadata = Map.Map String Value
 
