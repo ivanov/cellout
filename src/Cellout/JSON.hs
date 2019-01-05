@@ -69,14 +69,13 @@ outputs = T.pack "outputs"
 instance FromJSON Cell where
     --  parseJSON = genericParseJSON defaultOptions  {
     --    }
-    parseJSON (Object v) =  do
+    parseJSON =  withObject "Cell object" $ \v -> do
         cell_type <- v .: T.pack "cell_type"
         case cell_type of
             "markdown" -> MarkdownCell <$> (parseJSON (Object v) )
             "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (v .: T.pack "outputs") <*>  parseJSON (Object v)
             "raw" -> RawCell <$> (parseJSON (Object v) )
-            _ ->  fail "unrecognized cell type"
-            -- "code" -> CodeCell <$> (parseJSON (Object v) ) <*>  (parseJSON (v .: T.pack "outputs")) <*>  ((v .: T.pack "execution_count"))
+            _ ->  fail ("unrecognized cell type" ++ cell_type)
 
 instance ToJSON Cell where
     -- toJSON (MarkdownCell c) = object $ [ cell_type .= "markdown" ]
