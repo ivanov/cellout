@@ -56,3 +56,9 @@ spec_fromDisk = do
             case res of
                 Right nb -> (length . cells) nb `shouldBe` 1
                 Left err ->  "Could not read notebok" `shouldBe` err
+
+spec_notebookOps :: Spec
+spec_fromDisk = do
+    describe "notebook operations" $ do
+        it "can create notebooks via `mempty` or `mempty :: Notebook`" $ do
+            (length . cells) mempty `shouldBe` 0

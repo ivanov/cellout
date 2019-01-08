@@ -145,8 +145,14 @@ joining of heteregenous cell_type semantics.
 Questions for John: 
 [ ] is "LANGUAGE OverloadedStrings" ok, or is that frowned upon?
 
+2019-01-08
 - why CommonCellContent is a thing - because I wanted to be able to write code
   that did not care about cell type where that was not necessary (word count for
   example)
 
-- why monoid? cell merging operation
+- why monoid? cell merging operation. Also want to be able to contactenate two
+  notebooks
+
+  Ok, sweet - now I've got `mempty :: Notebook` working, and nb1 <> nb2 just
+  merges the two notebook cells, preferring the notebook metadata of nb1, but
+  adding anything that wasn't in nb1 to nb2 (first write wins)

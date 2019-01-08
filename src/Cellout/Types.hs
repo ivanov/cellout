@@ -30,6 +30,12 @@ data Notebook =
     , nbformat_minor :: Int
     } deriving (Show, Generic, Eq)
 
+instance Semigroup Notebook where
+    (Notebook c meta fmt fmt_minor) <> (Notebook c' meta' _ _) =
+        Notebook (c ++ c') (meta<>meta') fmt fmt_minor
+instance Monoid Notebook where
+    mempty = Notebook mempty mempty 4 2
+
 -- | convenience function for creating a Notebook with nbformat 4.2
 notebook :: [Cell] -> Metadata -> Notebook
 notebook c m  = Notebook c m 4 2
