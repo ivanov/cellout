@@ -141,3 +141,12 @@ sweet, now I can <> multiple instance of CommonCellContent! woo!
 although, joining Cells themselves is trickier - because you have to decide the
 joining of heteregenous cell_type semantics.
 
+2019-01-07
+Questions for John: 
+[ ] is "LANGUAGE OverloadedStrings" ok, or is that frowned upon?
+
+- why CommonCellContent is a thing - because I wanted to be able to write code
+  that did not care about cell type where that was not necessary (word count for
+  example)
+
+- why monoid? cell merging operation

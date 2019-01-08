@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Cellout.Types
     ( Notebook(..)
     , Cell(..)
@@ -13,6 +14,7 @@ module Cellout.Types
 import GHC.Generics
 import Data.Aeson (Value)
 import qualified Data.Map.Strict as Map
+import Data.Text
 
 import System.Environment (getArgs)
 
@@ -35,7 +37,7 @@ notebook c m  = Notebook c m 4 2
 -- | All cells have a set of source lines, and cell-level metadata
 data CommonCellContent =
     CommonCellContent
-    { source :: [String]
+    { source :: [Text]
     , cellmetadata :: Metadata
     } deriving (Show, Generic, Eq)
 
@@ -48,10 +50,10 @@ instance Semigroup CommonCellContent where
 instance Monoid CommonCellContent where
     mempty = CommonCellContent mempty mempty
 
-type Metadata = Map.Map String Value
+type Metadata = Map.Map Text Value
 
 -- | A mime bundle
-type MimeBundle = Map.Map String Value
+type MimeBundle = Map.Map Text Value
 
 
 -- | Streams are either Stdout or Stderr
@@ -66,14 +68,14 @@ data Output
         , outputmetadata :: Metadata
         }
     | Stream { name :: StreamName
-        , text :: [String]
+        , text :: [Text]
         }
     | DisplayData { data_ :: MimeBundle
         , outputmetadata :: Metadata
         }
-    | ErrorData { ename :: String
-        , evalue :: String
-        , traceback :: [String]
+    | ErrorData { ename :: Text
+        , evalue :: Text
+        , traceback :: [Text]
         }
     deriving (Show, Eq, Generic)
 

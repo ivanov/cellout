@@ -1,4 +1,5 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Cellout
     ( Notebook(..)
     , Cell(..)
@@ -71,7 +72,7 @@ empty_execution_count = ExecutionCount Nothing
 emptyOutput :: [Output]
 emptyOutput = []
 
-output1 :: String -> [String] -> Int -> Output
+output1 :: T.Text -> [String] -> Int -> Output
 output1 k v i = ExecuteResult (Map.singleton k (toJSON v)) i mempty
 
 
@@ -110,9 +111,9 @@ markdown_indicator in front of each line for Markdown and Raw cells
 TODO: markdown_indicator will need to be language sensitve, passed in, or
 else no markdown cells should be included.
 -}
-asCode :: Cell -> String
+asCode :: Cell -> T.Text
 asCode cell =  case cell of
-    CodeCell c _ _-> unlines $ source c
+    CodeCell c _ _-> T.unlines $ source c
     MarkdownCell c -> foldMap markdown_indicator (source c)
     RawCell c      -> foldMap markdown_indicator (source c)
 
@@ -120,16 +121,16 @@ asCode cell =  case cell of
 -- TODO: same as markdown_indicator above, we need a code_indicator below for
 -- language specific syntax highlighting for the people who want that sort of
 -- thing
-asMarkdown :: Cell -> String
+asMarkdown :: Cell -> T.Text
 asMarkdown cell =  case cell of
-    MarkdownCell c -> unlines ( source c) ++ "\n"
+    MarkdownCell c -> T.concat [ T.unlines ( source c) , T.pack "\n"]
     -- -- At some point I thought I might need to add extra new lines between
     -- -- markdown, but I dont' think that' s true...
-    -- MarkdownCell c -> unlines . (intersperse "\n") $ source c
-    CodeCell c o _ -> "```\n" ++ (unlines $ source c) ++ "```\n\n"
+    -- MarkdownCell c -> T.unlines . (intersperse "\n") $ source c
+    CodeCell c o _ -> T.concat ["```\n", (T.unlines $ source c), "```\n\n"]
 
-markdown_indicator :: String -> String
-markdown_indicator x = "### " ++ x ++ "\n"
+markdown_indicator :: T.Text -> T.Text
+markdown_indicator x = T.concat ["### ", x , "\n"]
 
 isMarkdown ::  Cell -> Bool
 isMarkdown (MarkdownCell _) = True
@@ -236,19 +237,19 @@ nbFilter f = f
 clearNbMetadata :: Notebook -> Notebook
 clearNbMetadata (Notebook cs nbmeta f m) = Notebook cs mempty f m
 
-printCells :: Notebook -> String
+printCells :: Notebook -> T.Text
 printCells
     = cells
     >>> fmap asCode
-    >>> concat
+    >>> T.concat
 -- the above is equiavalent to
 -- = concat (fmap asCode $ cells nb )
 
 -- for now, this ignores any metadata...
-showNb :: (Cell -> String) -> Notebook -> String
+showNb :: (Cell -> T.Text) -> Notebook -> T.Text
 showNb f = cells
     >>> fmap f
-    >>> concat
+    >>> T.concat
 
 onlyMarkdownContent :: Notebook -> Notebook
 onlyMarkdownContent
@@ -275,14 +276,14 @@ reversed
 onlyCell ::  Int -> Notebook -> Notebook
 onlyCell i (Notebook c n f m) =  Notebook [ c !! i ] n f m
 
-source' :: Cell -> [String]
+source' :: Cell -> [T.Text]
 source' (MarkdownCell c) = source c
 source' (CodeCell c _ _) = source c
 
 wordCount :: Cell -> (Int, Int, Int)
-wordCount c = let s =  unlines . source' $  c
+wordCount c = let s =  T.unlines . source' $  c
   in
-    (length (lines s), length (words s), length s)
+    (length (T.lines s), length (T.words s), T.length s)
 
 tupleSum :: (Int, Int, Int) -> (Int, Int, Int) -> (Int, Int, Int)
 tupleSum (a, b, c) (x, y, z) = (a+x, b+y, c+z)
