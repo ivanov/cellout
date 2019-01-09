@@ -156,3 +156,9 @@ Questions for John:
   Ok, sweet - now I've got `mempty :: Notebook` working, and nb1 <> nb2 just
   merges the two notebook cells, preferring the notebook metadata of nb1, but
   adding anything that wasn't in nb1 to nb2 (first write wins)
+
+TIL :sprint in ghci will show you what's been evaluated and what hasn't
+
+should we eliminate execution_count from Output payload? or not clear it on the
+beginning of execution of the next one, and clear it at the arrival of the
+previous one?
