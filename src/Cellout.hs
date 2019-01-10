@@ -73,7 +73,7 @@ emptyOutput :: [Output]
 emptyOutput = []
 
 output1 :: T.Text -> [String] -> Int -> Output
-output1 k v i = ExecuteResult (Map.singleton k (toJSON v)) i mempty
+output1 k v i = ExecuteResult (Just $ Map.singleton k (toJSON v)) (Just i) mempty
 
 
 -- | A multi-cell example notebook (useful for testing and ghci work)

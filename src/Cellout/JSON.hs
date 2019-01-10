@@ -9,6 +9,7 @@ import Data.Aeson.Types
 -- import qualified Data.Aeson.Types.Internal (Parser)
 import Data.Aeson.Encode.Pretty
 import Data.List (isSuffixOf)
+import Data.Vector as V ((!))
 import qualified Data.ByteString.Lazy as LB
 import qualified Data.HashMap.Lazy as HML
 -- TODO: get rid of the HML usage here - there must be a better API for this
@@ -40,9 +41,20 @@ toLower = (T.unpack . T.toLower . T.pack)
 
 opts = defaultOptions{ fieldLabelModifier = metaCorrector }
 
---nbformat3Parser :: Value -> Parser Notebook
-nbformat3Parser (Object v) =
-    Notebook <$>  v .: T.pack "worksheets"
+cellsFromWorksheet :: Value -> Parser [Cell]
+cellsFromWorksheet = withArray "worksheets array" $ \a -> do
+        --obj <- parseIndexedJSON a 0
+        --obj <- pure a !! 0
+        let val = a ! 0
+        --obj .: T.pack "cells"
+        withObject "worksheet object" (\obj -> (obj .: T.pack "cells")) val
+
+--nb3_Parser :: Value -> Parser Notebook
+nb3_Parser = withObject "Notebook object" $ \v ->
+    --Notebook <$> ( cellsFromWorksheet <$> (v .: T.pack "worksheets"))
+    Notebook <$> (\() -> do
+                    ws <- v .: T.pack "worksheets"
+                    cellsFromWorksheet ws) ()
              <*>  v .:? T.pack "metadata" .!= mempty
              <*>  v .:? T.pack "nbformat" .!= 3
              <*>  v .:? T.pack "nbformat_minor" .!= 0
@@ -50,9 +62,9 @@ nbformat3Parser (Object v) =
 -- TODO: combine multiple notebook parsers, since version 3 had cells under "worksheet"
 -- or do I want to make Notebook4 and Notebook3 separte instances, and have Notebook be a union of those two?
 instance FromJSON Notebook where
-    parseJSON x = modifyFailure ("Sorry, I can't parse this notebook: " ++) (genericParseJSON opts x) <|> (nbformat3Parser x)
-    --parseJSON x = (genericParseJSON opts x) <|> (nbformat3Parser x)
-    --parseJSON = asum [(genericParseJSON opts), nbformat3Parser] -- <|> nbformat3Parser2
+    parseJSON x = modifyFailure ("Sorry, I can't parse this notebook: " ++) (genericParseJSON opts x) <|> (nb3_Parser x)
+    --parseJSON x = (genericParseJSON opts x) <|> (nb3_Parser x)
+    --parseJSON = asum [(genericParseJSON opts), nb3_Parser]
 instance ToJSON Notebook where
     toEncoding = genericToEncoding opts
     toJSON = genericToJSON opts
@@ -98,8 +110,12 @@ unobject _ = HML.empty
 merge :: Value -> Value -> Value
 merge (Object x) (Object y) = Object $ HML.union x y
 
+nb3_parseCommon :: Value -> Parser CommonCellContent
+nb3_parseCommon  = withObject "common cell content" $ \o -> do
+    CommonCellContent <$> o .: T.pack "input" <*> o .: T.pack "metadata"
+
 instance FromJSON CommonCellContent where
-    parseJSON = genericParseJSON  opts
+    parseJSON x = genericParseJSON opts x <|> nb3_parseCommon x
 instance ToJSON CommonCellContent where
     -- toEncoding = genericToEncoding opts
     toEncoding = genericToEncoding opts
@@ -111,15 +127,27 @@ outputTagMod "DisplayData" = "display_data"
 outputTagMod "ErrorData" = "error"
 outputTagMod x = toLower x
 
+nb3_outputTagMod :: String -> String
+nb3_outputTagMod "ExecuteResult" = "pyout"
+nb3_outputTagMod "ErrorData" = "pyerr"
+nb3_outputTagMod x =  outputTagMod x
+
 
 instance FromJSON Output where
-    parseJSON = genericParseJSON defaultOptions{
+    parseJSON x = genericParseJSON defaultOptions{
         sumEncoding = TaggedObject "output_type" "",
         -- I want taggedflattened object, but instead rewrote  Output to have records
         unwrapUnaryRecords = True,
-        fieldLabelModifier = metaCorrector . dataKeywordFix,
-        constructorTagModifier = outputTagMod
-        }
+        fieldLabelModifier = metaCorrector . dataKeywordFix . nb3_streamRenamer,
+        constructorTagModifier = outputTagMod -- . nb3_outputTagMod
+        } x <|>
+        -- nbformat3 parser
+        genericParseJSON defaultOptions{
+        sumEncoding = TaggedObject "output_type" "",
+        unwrapUnaryRecords = True,
+        fieldLabelModifier = metaCorrector . dataKeywordFix . nb3_streamRenamer,
+        constructorTagModifier = nb3_outputTagMod
+        } x
     --     sumEncoding = TaggedObject "output_type" "contents",
     --     unwrapUnaryRecords = True,
     --     fieldLabelModifier = metaCorrector . dataKeywordFix
@@ -136,6 +164,10 @@ instance FromJSON Output where
     --                    Stream Stdout text
     --        -- "execute_result" -> ExecuteResult <$> parseJSON (Object v)
 
+nb3_streamRenamer :: String -> String
+nb3_streamRenamer "name" = "stream"
+nb3_streamRenamer x = x
+
 instance ToJSON Output where
     toJSON = genericToJSON defaultOptions{
         -- sumEncoding = UntaggedValue,
@@ -143,9 +175,12 @@ instance ToJSON Output where
         -- I want taggedflattened object, but instead rewrote  Output to have records
         unwrapUnaryRecords = True,
         fieldLabelModifier = metaCorrector . dataKeywordFix,
-        constructorTagModifier = outputTagMod
+        constructorTagModifier = outputTagMod . nb3_outputTagMod
         }
 
+
+nb3_executionCount :: Object -> Parser (Maybe Int)
+nb3_executionCount v =  v .:? T.pack "prompt_number" .!= Nothing
 
 instance FromJSON ExecutionCount where
     -- parseJSON = genericParseJSON defaultOptions{
@@ -154,7 +189,7 @@ instance FromJSON ExecutionCount where
     --     constructorTagModifier = \x -> if x == "execution_count" then "ExecutionCount" else x
     -- }
     -- -- ARGH, so frustrating that I can't figure out how to derive this and keep things generic
-    parseJSON (Object v) = ExecutionCount <$>  v .: T.pack "execution_count"
+    parseJSON (Object v) = ExecutionCount <$>  (v .: T.pack "execution_count")  <|>  ExecutionCount <$> (nb3_executionCount v)
     --parseJSON (Number n) = ExecutionCount <$> (Just n)
     --parseJSON (Number n) =  ExecutionCount <$> (Just n)
     --parseJSON (Number n) =  ExecutionCount <$> (Just toInteger(n))

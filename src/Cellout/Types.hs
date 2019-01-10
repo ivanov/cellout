@@ -69,14 +69,14 @@ data StreamName = Stdout | Stderr
 {- | A code cell can have multiple outputs - be they execute results, display data, or streams (stdout and stderr).
  -}
 data Output
-    = ExecuteResult { data_ :: MimeBundle -- data is a haskell keyword
-        , execution_count :: Int
+    = ExecuteResult { data_ :: Maybe MimeBundle -- data is a haskell keyword
+        , execution_count :: Maybe Int -- NB3: added Maybe to data_ and execution_count
         , outputmetadata :: Metadata
         }
     | Stream { name :: StreamName
         , text :: [Text]
         }
-    | DisplayData { data_ :: MimeBundle
+    | DisplayData { data_ :: Maybe MimeBundle
         , outputmetadata :: Metadata
         }
     | ErrorData { ename :: Text

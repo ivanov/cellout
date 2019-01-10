@@ -142,7 +142,7 @@ although, joining Cells themselves is trickier - because you have to decide the
 joining of heteregenous cell_type semantics.
 
 2019-01-07
-Questions for John: 
+Questions for John:
 [ ] is "LANGUAGE OverloadedStrings" ok, or is that frowned upon?
 
 2019-01-08
@@ -162,3 +162,19 @@ TIL :sprint in ghci will show you what's been evaluated and what hasn't
 should we eliminate execution_count from Output payload? or not clear it on the
 beginning of execution of the next one, and clear it at the arrival of the
 previous one?
+
+should nbformat 3 have a different notebook type or not?
+
+ok - so I got around the worksheets list indirection for cells. How do I deal with "input" instead of "source" for code cells...
+
+2019-01-10
+ I'm procceeding in the most expedient manner for the time being, baking in
+nbformat 3 parsers where the format diverges from version 4, but the right way
+of doing this will be to make a separate parser for the entire format,
+Notebook3, because otherwise we are subject to properly parsing a weirdo hybrid
+partially v3 and partially v4 notebook.
+
+The breadcrumbs I'm leaving myself is calling those parsing functions with an
+nb3_ prefix.
+
+[ ] was data mimebundle ever supported in pyout for nbformat3?
