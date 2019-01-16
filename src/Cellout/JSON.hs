@@ -138,8 +138,8 @@ instance FromJSON Output where
         sumEncoding = TaggedObject "output_type" "",
         -- I want taggedflattened object, but instead rewrote  Output to have records
         unwrapUnaryRecords = True,
-        fieldLabelModifier = metaCorrector . dataKeywordFix . nb3_streamRenamer,
-        constructorTagModifier = outputTagMod -- . nb3_outputTagMod
+        fieldLabelModifier = metaCorrector . dataKeywordFix ,
+        constructorTagModifier = outputTagMod
         } x <|>
         -- nbformat3 parser
         genericParseJSON defaultOptions{
