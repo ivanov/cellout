@@ -29,6 +29,9 @@ dependencies:
 - text >= 1.2.3 && < 1.3
 - unordered-containers >= 0.2.9 && < 0.3
 - vector >= 0.12 && < 0.13
+- ipynb >= 0.1
+- hedis >= 0.10.10
+
 
 library:
   source-dirs: src
@@ -47,6 +50,7 @@ executables:
     - aeson-pretty
     - containers
     - optparse-applicative
+    - ipynb
 
 tests:
   cellout-test:

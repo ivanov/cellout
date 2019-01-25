@@ -178,3 +178,19 @@ The breadcrumbs I'm leaving myself is calling those parsing functions with an
 nb3_ prefix.
 
 [ ] was data mimebundle ever supported in pyout for nbformat3?
+
+
+2019-01-24
+can't make writeNb and readNb work with  (Notebook a) types, can only get code
+to compile by making explicit type tied to (Notebook NbV4), for example
+
+get variants of
+
+
+* Couldn't match type `a' with `C.NbV4'
+	  `a' is a rigid type variable bound by
+		the type signature for:
+		  withNotebook :: forall a. C.Notebook a -> Opts -> IO ()
+		at app\Main.hs:88:1-45
+	  Expected type: C.Notebook C.NbV4
+		Actual type: C.Notebook a

@@ -1,7 +1,9 @@
+{-# LANGUAGE FlexibleContexts #-}
 module Main where
 
 import Data.Semigroup ((<>))
 import Options.Applicative
+import qualified Data.Aeson as A
 --import Options.Applicative.Help
 
 import qualified Cellout as C
@@ -26,7 +28,7 @@ supported_outputs =
     , "markdown"
     ]
 
-getCellsFilter :: Opts -> (C.Cell -> C.Cell)
+getCellsFilter :: Opts -> (C.Cell a -> C.Cell a)
 getCellsFilter opts = case (clearOutput opts, clearPrompt opts) of
     (True, True) -> (C.clearOutput . C.clearPrompt)
     (True, False) -> C.clearOutput -- though this clears prompt also, at the moment
@@ -48,9 +50,14 @@ main = do
     -- there's probably some nicer way of handling the Left case here, but this
     -- is fine for now to make progress
     --Right nb <- readNb (inputFilename opts)  ; \x -> fail x
-    res <- C.readNb (inputFilename opts)
+    -- TODO: Can't I leave this as readNb? the rest of the code doesn't care about the ambiguoutity of the a in (Notebook a) types
+    res <- (C.readNb4 (inputFilename opts))
     case res of
-        Left err -> fail err
+        Left err -> do
+            res2 <- (C.readNb3 (inputFilename opts))
+            case res2 of
+                Left err -> fail err
+                Right nb -> withNotebook nb opts
         Right nb -> withNotebook nb opts
 
     where
@@ -85,7 +92,8 @@ main = do
             <*> (length <$> many (flag' () (long "verbose" <> short 'v' <> help "Print debugging messages. Multiple -v options increase the verbosity, up to a maximum of 5.")))
 
 
-withNotebook :: C.Notebook -> Opts -> IO ()
+--withNotebook :: C.Notebook C.NbV4 -> Opts -> IO ()
+withNotebook :: A.ToJSON (C.Notebook a) => C.Notebook a -> Opts -> IO ()
 withNotebook nb opts = do
     info <- return (C.collectInfo nb)
 
