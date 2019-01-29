@@ -70,7 +70,7 @@ main = do
                 (fullDesc <> progDesc "Convert to notebook formats" <>
                  header "cellout - buy into rich notebook conversion")
         versionOption :: Parser (a -> a)
-        versionOption = infoOption "0.1" (long "version" <> help "show Version")
+        versionOption = infoOption "0.1.1" (long "version" <> help "show Version")
         programOptions :: Parser Opts
         programOptions =
             Options
