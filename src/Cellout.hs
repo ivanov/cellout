@@ -315,17 +315,28 @@ plural :: Int -> String
 plural 1 = ""
 plural _ = "s"
 
+
+data NotebookInfo = NotebookInfo
+    { nCodeCells :: Int
+    , nMarkdownCells :: Int
+    , nRawCells :: Int
+    } 
+
+instance Show NotebookInfo where
+    show NotebookInfo {nCodeCells=code, nMarkdownCells=md, nRawCells=raw} = 
+        let sum = code + md + raw
+        in show sum ++ " cell" ++ plural sum ++ " (" ++ show code ++ " code, " ++ show md ++ " markdown)"
 {- | Get a summary string for this notebook (cell breakdown by type).
 
 TODO: generalize this, don't just write to a string immediately.
  -}
-collectInfo :: Notebook a -> String
+collectInfo :: Notebook a -> NotebookInfo
 collectInfo nb
     = let
         (code, md, raw) = countCellsByType (cells nb)
         sum = code + md + raw
     in
-        show sum ++ " cell" ++ plural sum ++ " (" ++ show code ++ " code, " ++ show md ++ " markdown)"
+        NotebookInfo code md raw
 
 -- stripOutputIO :: String -> String -> IO ()
 -- stripOutputIO inputFile outputFile = do

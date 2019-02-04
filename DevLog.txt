@@ -194,3 +194,8 @@ get variants of
 		at app\Main.hs:88:1-45
 	  Expected type: C.Notebook C.NbV4
 		Actual type: C.Notebook a
+
+
+2019-01-29
+[ ] --append-markdown and --append-raw and --append-code that each take a
+string. Same with --insert-at 4 --code-cell "print(\"hello\")" --raw-cell "yo" --markdown-cell

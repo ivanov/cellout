@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE OverloadedStrings #-}
 module Main where
 
 import Data.Semigroup ((<>))
@@ -7,6 +8,8 @@ import qualified Data.Aeson as A
 --import Options.Applicative.Help
 
 import qualified Cellout as C
+--import qualified Database.Redis as R
+import Database.Redis
 
 data Opts = Options
     { inputFilename :: !FilePath
@@ -35,8 +38,8 @@ getCellsFilter opts = case (clearOutput opts, clearPrompt opts) of
     (False, True) -> C.clearPrompt
     (False, False) -> id
 
-main :: IO ()
-main = do
+main' :: IO ()
+main' = do
     opts <- customExecParser p optsParser
 
     if (verbosity opts) > 2
@@ -65,7 +68,7 @@ main = do
         p = prefs (showHelpOnEmpty <> disambiguate)
         optsParser :: ParserInfo Opts
         optsParser =
-            info
+            Options.Applicative.info
                 (programOptions <* helper <* versionOption)
                 (fullDesc <> progDesc "Convert to notebook formats" <>
                  header "cellout - buy into rich notebook conversion")
@@ -98,7 +101,7 @@ withNotebook nb opts = do
     info <- return (C.collectInfo nb)
 
     if (verbosity opts) > 2 || (summary opts)
-    then putStrLn ("Input notebook contains " ++ info)
+    then putStrLn ("Input notebook contains " ++ show info)
     else return ()
 
 
@@ -116,7 +119,17 @@ withNotebook nb opts = do
             else return ()
 
             if (verbosity opts) > 2 || (summary opts)
-            then putStrLn ("Output notebook contains " ++ outInfo)
+            then putStrLn ("Output notebook contains " ++ show outInfo)
             else return ()
 
     else return ()
+
+main :: IO ()
+main = do
+    conn <- checkedConnect defaultConnectInfo
+    runRedis conn $ do
+        set "hello" "there"
+        -- hincrby "mimetypes"  mimetype 1
+    pure ()
+
+
