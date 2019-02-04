@@ -125,8 +125,8 @@ outputs" while operating on the pandoc AST.
 - [ ] comment percent-percent format used by [spyder](https://docs.spyder-ide.org/editor.html#defining-code-cells)
 - [ ] jupytext's extensions to the [percent format](https://github.com/mwouts/jupytext#the-percent-format)
 - [ ] [ipymd](https://github.com/rossant/ipymd)
-- [ ] folder  ("manila folder")
-- [ ] zip-file ("manila envelope")
+- [ ] folder  ("manila folder" / [cabinet][cabinet] )
+- [ ] zip-file ("manila envelope" / [cabinet][cabinet])
 
 
 ## Comparing to `nbconvert`
@@ -211,3 +211,5 @@ has a format of converting python scripts to notebooks and to Restructured Text
 (`.rst`) with execution results included.
 
 [pandoc]: https://pandoc.org "Pandoc: a universal document converter"
+
+[cabinet]:  https://github.com/nteract/cabinet#proposal "nteract cabinet: Exploring a new notebook container format"
