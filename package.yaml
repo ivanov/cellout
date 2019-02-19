@@ -45,6 +45,7 @@ executables:
     - -rtsopts
     - -with-rtsopts=-N
     dependencies:
+    - directory
     - cellout
     - aeson
     - aeson-pretty

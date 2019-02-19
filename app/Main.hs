@@ -8,6 +8,7 @@ import Control.Monad.IO.Class (liftIO)
 import qualified Data.Aeson as A
 import Data.Text (pack)
 import Data.Text.Encoding (encodeUtf8)
+import System.Directory (makeAbsolute)
 --import Options.Applicative.Help
 
 import qualified Cellout as C
@@ -62,7 +63,7 @@ main = do
         Left err -> do
             res2 <- (C.readNb3 (inputFilename opts))
             case res2 of
-                Left err -> fail err
+                Left err -> giveUp opts err
                 Right nb -> withNotebook nb opts
         Right nb -> withNotebook nb opts
 
@@ -130,8 +131,9 @@ withNotebook nb opts = do
 writeStatsToDb :: C.NotebookInfo -> Opts ->  IO ()
 writeStatsToDb info opts = do
     conn <- checkedConnect defaultConnectInfo
+    absFilename <- makeAbsolute (inputFilename opts)
     runRedis conn $ do
-        new <- sadd "notebooks" [((encodeUtf8 . pack . inputFilename) opts)]
+        new <- sadd "notebooks" [((encodeUtf8 . pack) absFilename)]
         case new of
             Right num -> 
                 if num == 1 then do
@@ -141,9 +143,25 @@ writeStatsToDb info opts = do
                     incrby "raw" (toInteger (C.nRawCells info))
                     return ()
                 else do
-                    liftIO $ putStrLn("Already processed " ++ inputFilename opts ++ "  before")
+                    liftIO $ putStrLn("Already processed `" ++ absFilename ++ "`  before")
             Left reply -> fail (show reply)
         -- hincrby "mimetypes"  mimetype 1
     pure ()
 
+
+giveUp :: Opts -> String -> IO ()
+giveUp opts err = do
+    conn <- checkedConnect defaultConnectInfo
+    absFilename <- makeAbsolute (inputFilename opts)
+    runRedis conn $ do
+        new <- sadd "failed" [((encodeUtf8 . pack) absFilename)]
+        case new of
+            Right num -> 
+                if num == 1 then do
+                    incrby "failed_notebooks" 1 
+                    return ()
+                else do
+                    liftIO $ putStrLn("Already failed `" ++ absFilename ++ "`  before")
+            Left reply -> fail $ (show reply)  ++ err
+    fail err
 
