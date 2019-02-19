@@ -4,7 +4,10 @@ module Main where
 
 import Data.Semigroup ((<>))
 import Options.Applicative
+import Control.Monad.IO.Class (liftIO)
 import qualified Data.Aeson as A
+import Data.Text (pack)
+import Data.Text.Encoding (encodeUtf8)
 --import Options.Applicative.Help
 
 import qualified Cellout as C
@@ -38,8 +41,8 @@ getCellsFilter opts = case (clearOutput opts, clearPrompt opts) of
     (False, True) -> C.clearPrompt
     (False, False) -> id
 
-main' :: IO ()
-main' = do
+main :: IO ()
+main = do
     opts <- customExecParser p optsParser
 
     if (verbosity opts) > 2
@@ -122,13 +125,24 @@ withNotebook nb opts = do
             then putStrLn ("Output notebook contains " ++ show outInfo)
             else return ()
 
-    else return ()
+    else writeStatsToDb info opts
 
-main :: IO ()
-main = do
+writeStatsToDb :: C.NotebookInfo -> Opts ->  IO ()
+writeStatsToDb info opts = do
     conn <- checkedConnect defaultConnectInfo
     runRedis conn $ do
-        set "hello" "there"
+        new <- sadd "notebooks" [((encodeUtf8 . pack . inputFilename) opts)]
+        case new of
+            Right num -> 
+                if num == 1 then do
+                    incrby "number_notebooks" 1 
+                    incrby "markdown" (toInteger (C.nMarkdownCells info))
+                    incrby "code" (toInteger (C.nCodeCells info))
+                    incrby "raw" (toInteger (C.nRawCells info))
+                    return ()
+                else do
+                    liftIO $ putStrLn("Already processed " ++ inputFilename opts ++ "  before")
+            Left reply -> fail (show reply)
         -- hincrby "mimetypes"  mimetype 1
     pure ()
 

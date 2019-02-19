@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveGeneric, OverloadedStrings #-}
 {-# LANGUAGE OverloadedStrings #-}
 module Cellout
-    (
-    Notebook(..)
+    ( Notebook(..)
     , NbV3
     , NbV4
     , Cell(..)
     , Output(..)
+    , NotebookInfo(..)
     --  , ExecutionCount(..)
     --  , MimeBundle
     --  , StreamName(..)
