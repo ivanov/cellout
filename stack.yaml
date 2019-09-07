@@ -41,6 +41,7 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
 - aeson-1.4.1.0
+- binary-0.8.7.0
 - containers-0.6.0.1
 - hedis-0.10.10
 - ipynb-0.1
