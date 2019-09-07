@@ -35,7 +35,7 @@ resolver: lts-12.9
 #  - wai
 packages:
 - .
-- ..\ipynb
+#- ..\ipynb
 # Dependency packages to be pulled from upstream that are not in the resolver
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
@@ -43,7 +43,7 @@ extra-deps:
 - aeson-1.4.1.0
 - containers-0.6.0.1
 - hedis-0.10.10
-# - ipynb-0.1
+- ipynb-0.1
 # - attoparsec-0.13.2.2
 # - parsec-3.1.13.0
 
